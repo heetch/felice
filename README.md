@@ -1,6 +1,6 @@
 # Felice
 ## What is Felice?
-Felice is a nascent, opionated Kafka library for Go, in Go. 
+Felice is a nascent, opinionated Kafka library for Go, in Go. 
 
 ## Can I use Felice?
 Felice is very much a work in progress.  We expect to move forward quickly, but it's not ready to use in anger yet.
