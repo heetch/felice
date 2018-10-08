@@ -51,3 +51,14 @@ func TestNew(t *testing.T) {
 	require.NotZero(t, msg.Headers["Produced-At"])
 	require.Equal(t, []byte(`"message"`), msg.Body)
 }
+
+// message.New invokes all provided Options on the message it constructs.
+func TestNewWithOptions(t *testing.T) {
+	msg, err := message.New(
+		"test", "message", message.Header("Shoe", "Wellington"), message.Key("apple"))
+	require.NoError(t, err)
+	require.Len(t, msg.Headers, 3)
+	require.Equal(t, "Wellington", msg.Headers["Shoe"])
+
+	require.Equal(t, "apple", msg.Key)
+}
