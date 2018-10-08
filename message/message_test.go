@@ -36,3 +36,18 @@ func TestNewWithValueWhichCannotBeMarshaled(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "failed to encode message body: json: unsupported type: chan bool", err.Error())
 }
+
+// message.New returns a valid Message when provided valid parameters.
+func TestNew(t *testing.T) {
+	msg, err := message.New("test", "message")
+	require.NoError(t, err)
+	require.NotNil(t, msg)
+
+	require.NotZero(t, msg.ID)
+	require.Equal(t, "test", msg.Topic)
+	require.Len(t, msg.Headers, 2)
+
+	require.Equal(t, msg.ID, msg.Headers["Message-Id"])
+	require.NotZero(t, msg.Headers["Produced-At"])
+	require.Equal(t, []byte(`"message"`), msg.Body)
+}
