@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// message.New returns an empty message on the "test" topic without error.
-func TestNew(t *testing.T) {
+// message.New returns a message with a valid JSON encoded body when a nil value is passed.
+func TestNewWithEmptyValue(t *testing.T) {
 	msg, err := message.New("test", nil)
 	require.NoError(t, err)
 	require.NotNil(t, msg)
@@ -21,4 +21,11 @@ func TestNew(t *testing.T) {
 	require.NotZero(t, msg.Headers["Produced-At"])
 	// "null" is the JSON representation of nil
 	require.Equal(t, []byte("null"), msg.Body)
+}
+
+// message.New should return an error if no topic name is provided.
+func TestNewWithEmptyTopic(t *testing.T) {
+	_, err := message.New("", "Foo")
+	require.Error(t, err)
+	require.Equal(t, "messages require a non-empty topic", err.Error())
 }
