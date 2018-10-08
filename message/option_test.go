@@ -18,3 +18,12 @@ func TestHeader(t *testing.T) {
 	require.Len(t, msg.Headers, 1)
 	require.Equal(t, "Brogue", msg.Headers["Shoe"])
 }
+
+// Key returns an Option function which will set the message key.
+func TestKey(t *testing.T) {
+	var fn message.Option
+	fn = message.Key("banana")
+	msg := message.Message{}
+	fn(&msg)
+	require.Equal(t, "banana", msg.Key)
+}
