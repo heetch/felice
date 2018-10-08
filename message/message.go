@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -36,6 +37,10 @@ type Message struct {
 
 // New creates a new configured message.
 func New(topic string, value interface{}, opts ...Option) (*Message, error) {
+	if topic == "" {
+		return nil, fmt.Errorf("messages require a non-empty topic")
+	}
+
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate an UUID")
