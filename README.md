@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/heetch/felice.svg?branch=master)](https://travis-ci.org/heetch/felice)
 # Felice
 ## What is Felice?
 Felice is a nascent, opinionated Kafka library for Go, in Go. 
