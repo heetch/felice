@@ -1,0 +1,9 @@
+language: go
+go:
+  - 1.11.x
+
+os:
+  - linux
+
+script:
+  - go test -v -race -cover -timeout=1m ./...
