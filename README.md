@@ -1,4 +1,4 @@
-![](./felice.svgz)
+![](https://raw.githubusercontent.com/heetch/felice/travis-ci-setup/felice.png)
 [![Build Status](https://travis-ci.org/heetch/felice.svg?branch=master)](https://travis-ci.org/heetch/felice)
 # Felice
 ## What is Felice?
