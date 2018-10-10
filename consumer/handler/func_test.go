@@ -10,7 +10,7 @@ import (
 
 // HandleMessageFn can be used as a Handler
 func TestHandleMessageFn(t *testing.T) {
-	calls := make([]bool, 0)
+	var calls []bool
 
 	var h handler.Handler
 	h = handler.HandlerFunc(func(msg *message.Message) error {
