@@ -26,15 +26,13 @@ func TestNewWithEmptyValue(t *testing.T) {
 // message.New should return an error if no topic name is provided.
 func TestNewWithEmptyTopic(t *testing.T) {
 	_, err := message.New("", "Foo")
-	require.Error(t, err)
-	require.Equal(t, "messages require a non-empty topic", err.Error())
+	require.EqualError(t, err, "messages require a non-empty topic")
 }
 
 // message.New should return an error if the value provided cannot be marshaled
 func TestNewWithValueWhichCannotBeMarshaled(t *testing.T) {
 	_, err := message.New("test", make(chan bool))
-	require.Error(t, err)
-	require.Equal(t, "failed to encode message body: json: unsupported type: chan bool", err.Error())
+	require.EqualError(t, err, "failed to encode message body: json: unsupported type: chan bool")
 }
 
 // message.New returns a valid Message when provided valid parameters.
