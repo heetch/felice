@@ -20,29 +20,30 @@ func (th *testHandler) HandleMessage(m *message.Message) error {
 // The Get and Set functions on the Collection type manage a uniqe set
 // of associations between Topics and Handlers.
 func TestCollectionGetSet(t *testing.T) {
-	type testCase struct {
-		Topic   string
-		Handler handler.Handler
-		OK      bool
-	}
 
 	th1 := &testHandler{ID: 1}
 	th2 := &testHandler{ID: 2}
 
-	setups := []struct {
-		Name     string
-		Handlers []map[string]handler.Handler
-		Tests    []testCase
+	testCases := []struct {
+		Name            string
+		Handlers        []map[string]handler.Handler
+		TestTopic       string
+		ExpectedHandler handler.Handler
+		ExpectedOK      bool
 	}{
 		{
-			Name:     "Get from an empty Collection",
-			Handlers: nil,
-			Tests:    []testCase{{Topic: "Shoe", Handler: nil, OK: false}},
+			Name:            "Get from an empty Collection",
+			Handlers:        nil,
+			TestTopic:       "Shoe",
+			ExpectedHandler: nil,
+			ExpectedOK:      false,
 		},
 		{
-			Name:     "Set and Get the same Topic's handler",
-			Handlers: []map[string]handler.Handler{{"Shoe": th1}},
-			Tests:    []testCase{{Topic: "Shoe", Handler: th1, OK: true}},
+			Name:            "Set and Get the same Topic's handler",
+			Handlers:        []map[string]handler.Handler{{"Shoe": th1}},
+			TestTopic:       "Shoe",
+			ExpectedHandler: th1,
+			ExpectedOK:      true,
 		},
 		{
 			Name: "Overwite topic association",
@@ -52,31 +53,56 @@ func TestCollectionGetSet(t *testing.T) {
 				// overwrite the association with th1.
 				{"Shoe": th2},
 			},
-			Tests: []testCase{{Topic: "Shoe", Handler: th2, OK: true}},
+			TestTopic:       "Shoe",
+			ExpectedHandler: th2,
+			ExpectedOK:      true,
 		},
 	}
 
-	for _, s := range setups {
-		t.Run(s.Name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
 			c := &handler.Collection{}
-			// We apply iterations of handlers in order
-			for _, hi := range s.Handlers {
+			// We apply iterations of Topic⇒Handler associations in order
+			for _, hi := range tc.Handlers {
 				for k, v := range hi {
 					c.Set(k, v)
 				}
 			}
-			for _, tc := range s.Tests {
-				h, ok := c.Get(tc.Topic)
-				if tc.OK {
-					require.True(t, ok)
-					msg := &message.Message{}
-					require.Equal(t, tc.Handler.HandleMessage(msg), h.HandleMessage(msg))
-				} else {
-					require.False(t, tc.OK)
-				}
+			h, ok := c.Get(tc.TestTopic)
+			if tc.ExpectedOK {
+				require.True(t, ok)
+				msg := &message.Message{}
+				require.Equal(t, tc.ExpectedHandler.HandleMessage(msg), h.HandleMessage(msg))
+			} else {
+				require.False(t, ok)
 			}
-
 		})
 	}
+}
 
+// The Collection.Topics function returns the set of all topics with
+// handlers in the Collection.
+func TestCollectionTopics(t *testing.T) {
+	testCases := []struct {
+		Name        string
+		Topics      []string
+		Expectation []string
+	}{
+		{
+			Name:        "No topics registered",
+			Topics:      nil,
+			Expectation: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			c := &handler.Collection{}
+			for _, t := range tc.Topics {
+				c.Set(t, &testHandler{})
+			}
+			result := c.Topics()
+			require.ElementsMatch(t, result, tc.Expectation)
+		})
+	}
 }
