@@ -98,6 +98,11 @@ func TestCollectionTopics(t *testing.T) {
 			Topics:      []string{"Shoe"},
 			Expectation: []string{"Shoe"},
 		},
+		{
+			Name:        "Multiple topics",
+			Topics:      []string{"Shoe", "Fruit"},
+			Expectation: []string{"Shoe", "Fruit"},
+		},
 	}
 
 	for _, tc := range testCases {
