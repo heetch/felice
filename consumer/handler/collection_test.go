@@ -93,6 +93,11 @@ func TestCollectionTopics(t *testing.T) {
 			Topics:      nil,
 			Expectation: []string{},
 		},
+		{
+			Name:        "One topic",
+			Topics:      []string{"Shoe"},
+			Expectation: []string{"Shoe"},
+		},
 	}
 
 	for _, tc := range testCases {
