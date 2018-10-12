@@ -37,10 +37,10 @@ func TestSend(t *testing.T) {
 	p := producer.Producer{SyncProducer: msp}
 
 	msp.ExpectSendMessageAndSucceed()
-	err := p.Send("topic", "message")
+	_, err := p.Send("topic", "message")
 	require.NoError(t, err)
 
 	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
-	err = p.Send("topic", "message")
+	_, err = p.Send("topic", "message")
 	require.EqualError(t, err, "failed to send message: cannot produce message")
 }
