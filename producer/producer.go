@@ -14,7 +14,7 @@ type Producer struct {
 }
 
 // New creates a configured Producer.
-// This Producer is synchronous, it means that it will wait for all the replicas to
+// This Producer is synchronous, this means that it will wait for all the replicas to
 // acknowledge the message.
 func New(clientID string, maxRetry int, addrs ...string) (*Producer, error) {
 	config := newSaramaConfiguration(clientID, maxRetry)
