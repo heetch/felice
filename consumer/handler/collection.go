@@ -2,8 +2,6 @@ package handler
 
 import (
 	"sync"
-
-	"github.com/Sirupsen/logrus"
 )
 
 // A Collection is set of Handler types, keyed by topic. Only one
@@ -15,8 +13,6 @@ import (
 // safe to use in concurrent code.
 type Collection struct {
 	sync.RWMutex
-
-	logger   *logrus.Entry
 	handlers map[string]Handler
 }
 
