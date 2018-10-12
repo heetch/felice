@@ -40,13 +40,15 @@ func newSaramaConfiguration(clientID string, maxRetry int) *sarama.Config {
 }
 
 // Send creates and sends a message to Kafka synchronously.
-func (p *Producer) Send(topic string, value interface{}, opts ...message.Option) error {
+// It returns the message.Message sent to the brokers.
+func (p *Producer) Send(topic string, value interface{}, opts ...message.Option) (*message.Message, error) {
 	msg, err := message.New(topic, value, opts...)
 	if err != nil {
-		return errors.Wrap(err, "producer: failed to create a message")
+		return nil, errors.Wrap(err, "producer: failed to create a message")
 	}
 
-	return p.SendMessage(msg)
+	err = p.SendMessage(msg)
+	return msg, err
 }
 
 // SendMessage sends the given message to Kafka synchronously.
