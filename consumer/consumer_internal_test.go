@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Shopify/sarama"
 
@@ -11,9 +12,17 @@ import (
 	"github.com/heetch/felice/message"
 )
 
-type testHandler struct{}
+type testHandler struct {
+	t         *testing.T
+	testCase  func(*message.Message) (string, func(t *testing.T))
+	CallCount int
+}
 
 func (h *testHandler) HandleMessage(m *message.Message) error {
+	h.CallCount++
+	if h.testCase != nil {
+		h.t.Run(h.testCase(m))
+	}
 	return nil
 }
 
@@ -105,4 +114,81 @@ func TestConsumerHandlePartitions(t *testing.T) {
 	require.EqualError(t, err, "partition consumer channel closed")
 	c.wg.Wait()
 	require.Equal(t, 1, pcm.MessagesCount)
+}
+
+type metricsHook struct {
+	ReportsCount int
+}
+
+func (metricsHook) Reports(msg message.Message, metadatas map[string]string) {
+
+}
+
+func TestConsumerHandleMessages(t *testing.T) {
+	c := Consumer{}
+	handler := &testHandler{
+		t: t,
+		testCase: func(m *message.Message) (string, func(t *testing.T)) {
+			return "topic", func(t *testing.T) {
+				require.Equal(t, "topic", m.Topic)
+				require.EqualValues(t, "body", m.Body)
+				require.EqualValues(t, "key", m.Key)
+			}
+		},
+	}
+
+	c.Handle("topic", handler)
+
+	ch := make(chan *sarama.ConsumerMessage, 1)
+	ch <- &sarama.ConsumerMessage{
+		Topic: "topic",
+		Key:   []byte("key"),
+		Value: []byte("body"),
+	}
+	close(ch)
+
+	hwm := &mockHighWaterMarker{}
+	mos := &mockOffsetStash{}
+	c.handleMessages(ch, mos, hwm)
+
+	require.Equal(t, 1, handler.CallCount)
+}
+
+func TestConvertMessage(t *testing.T) {
+	c := &Consumer{}
+	now := time.Now()
+	sm := &sarama.ConsumerMessage{
+		Topic:     "topic",
+		Key:       []byte("key"),
+		Value:     []byte("body"),
+		Timestamp: now,
+		Offset:    10,
+		Partition: 10,
+	}
+
+	msg := c.convertMessage(sm)
+	require.Equal(t, sm.Topic, msg.Topic)
+	require.EqualValues(t, sm.Key, msg.Key)
+	require.EqualValues(t, sm.Value, msg.Body)
+	require.Equal(t, sm.Timestamp, msg.ProducedAt)
+	require.Equal(t, sm.Offset, msg.Offset)
+	require.Equal(t, sm.Partition, msg.Partition)
+}
+
+type mockOffsetStash struct {
+	MarkOffsetCount int
+}
+
+func (m *mockOffsetStash) MarkOffset(msg *sarama.ConsumerMessage, metadata string) {
+	m.MarkOffsetCount++
+	msg.Offset++
+}
+
+type mockHighWaterMarker struct {
+	HighWaterMarkOffsetCount int
+}
+
+func (m *mockHighWaterMarker) HighWaterMarkOffset() int64 {
+	m.HighWaterMarkOffsetCount++
+	return 0
 }
