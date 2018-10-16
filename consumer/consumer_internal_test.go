@@ -148,15 +148,27 @@ func TestConsumerHandleMessages(t *testing.T) {
 
 type metricsHook struct {
 	ReportsCount int
+	t            *testing.T
+	testCase     func(msg message.Message, metadatas map[string]string) (string, func(*testing.T))
 }
 
 func (mmh *metricsHook) Reports(msg message.Message, metadatas map[string]string) {
 	mmh.ReportsCount++
+	mmh.t.Run(mmh.testCase(msg, metadatas))
 }
 
 func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c := Consumer{}
-	mmh := &metricsHook{}
+	mmh := &metricsHook{
+		t: t,
+		testCase: func(msg message.Message, meta map[string]string) (string, func(t *testing.T)) {
+			return "metrics", func(t *testing.T) {
+				require.Equal(t, "topic", msg.Topic)
+				require.EqualValues(t, "body", msg.Body)
+				require.EqualValues(t, "key", msg.Key)
+			}
+		},
+	}
 	c.SetMetricsHook(mmh)
 	handler := &testHandler{}
 
