@@ -116,14 +116,6 @@ func TestConsumerHandlePartitions(t *testing.T) {
 	require.Equal(t, 1, pcm.MessagesCount)
 }
 
-type metricsHook struct {
-	ReportsCount int
-}
-
-func (metricsHook) Reports(msg message.Message, metadatas map[string]string) {
-
-}
-
 func TestConsumerHandleMessages(t *testing.T) {
 	c := Consumer{}
 	handler := &testHandler{
@@ -152,6 +144,37 @@ func TestConsumerHandleMessages(t *testing.T) {
 	c.handleMessages(ch, mos, hwm)
 
 	require.Equal(t, 1, handler.CallCount)
+}
+
+type metricsHook struct {
+	ReportsCount int
+}
+
+func (mmh *metricsHook) Reports(msg message.Message, metadatas map[string]string) {
+	mmh.ReportsCount++
+}
+
+func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
+	c := Consumer{}
+	mmh := &metricsHook{}
+	c.SetMetricsHook(mmh)
+	handler := &testHandler{}
+
+	c.Handle("topic", handler)
+	ch := make(chan *sarama.ConsumerMessage, 1)
+	ch <- &sarama.ConsumerMessage{
+		Topic: "topic",
+		Key:   []byte("key"),
+		Value: []byte("body"),
+	}
+	close(ch)
+
+	hwm := &mockHighWaterMarker{}
+	mos := &mockOffsetStash{}
+	c.handleMessages(ch, mos, hwm)
+
+	require.Equal(t, 1, mmh.ReportsCount)
+
 }
 
 func TestConvertMessage(t *testing.T) {
