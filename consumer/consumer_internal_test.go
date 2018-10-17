@@ -22,6 +22,15 @@ func TestHandle(t *testing.T) {
 	require.NotNil(t, res)
 }
 
+// Consumer.setup initialises important values on the consumer
+func TestSetUp(t *testing.T) {
+	c := &Consumer{}
+	c.setup()
+	require.NotNil(t, c.handlers)
+	require.NotNil(t, c.quit)
+	require.Equal(t, c.RetryInterval, time.Second)
+}
+
 // Consumer.handlePartitions exits when we close the channel of PartitionConsumers
 func TestConsumerHandlePartitionsOnClosedChannel(t *testing.T) {
 	c := Consumer{}
