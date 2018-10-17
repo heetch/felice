@@ -166,6 +166,9 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 				require.Equal(t, "topic", msg.Topic)
 				require.EqualValues(t, "body", msg.Body)
 				require.EqualValues(t, "key", msg.Key)
+				require.Equal(t, "1", meta["attempts"])
+				require.Equal(t, "1", meta["msgOffset"])
+				require.Equal(t, "0", meta["remainingOffset"])
 			}
 		},
 	}
@@ -225,5 +228,5 @@ type mockHighWaterMarker struct {
 
 func (m *mockHighWaterMarker) HighWaterMarkOffset() int64 {
 	m.HighWaterMarkOffsetCount++
-	return 0
+	return int64(m.HighWaterMarkOffsetCount)
 }
