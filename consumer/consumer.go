@@ -51,20 +51,25 @@ func (c *Consumer) SetMetricsHook(mh MetricsHook) {
 	c.metrics = mh
 }
 
+func newClusterConfig(clientID string) *cluster.Config {
+	c := cluster.NewConfig()
+	c.ClientID = clientID
+	c.Consumer.Return.Errors = true
+	// Specify that we are using at least Kafka v1.0
+	c.Version = sarama.V1_0_0_0
+	// Distribute load across instances using round robin strategy
+	c.Group.PartitionStrategy = cluster.StrategyRoundRobin
+	// One chan per partition instead of default multiplexing behaviour.
+	c.Group.Mode = cluster.ConsumerModePartitions
+
+	return c
+}
+
 // Serve runs the consumer and listens for new messages on the given topics.
 func (c *Consumer) Serve(clientID string, addrs ...string) error {
 	c.setup()
 
-	config := cluster.NewConfig()
-	config.ClientID = clientID
-	config.Consumer.Return.Errors = true
-	// Specify that we are using at least Kafka v1.0
-	config.Version = sarama.V1_0_0_0
-	// Distribute load across instances using round robin strategy
-	config.Group.PartitionStrategy = cluster.StrategyRoundRobin
-	// One chan per partition instead of default multiplexing behaviour.
-	config.Group.Mode = cluster.ConsumerModePartitions
-	c.config = config
+	c.config = newClusterConfig(clientID)
 	topics := c.handlers.Topics()
 
 	consumerGroup := fmt.Sprintf("%s-consumer-group", clientID)
@@ -73,7 +78,7 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 		addrs,
 		consumerGroup,
 		topics,
-		config)
+		c.config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
