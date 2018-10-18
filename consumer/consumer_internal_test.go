@@ -160,6 +160,16 @@ func TestConvertMessage(t *testing.T) {
 	require.Equal(t, sm.Partition, msg.Partition)
 }
 
+// Consumer.newClusterConfig create a new configuration for the cluster.
+func TestNewClusterConfig(t *testing.T) {
+	c := newClusterConfig("test")
+	require.Equal(t, "test", c.ClientID)
+	require.True(t, c.Consumer.Return.Errors)
+	require.Equal(t, sarama.V1_0_0_0, c.Version)
+	require.Equal(t, cluster.StrategyRoundRobin, c.Group.PartitionStrategy)
+	require.Equal(t, cluster.ConsumerModePartitions, c.Group.Mode)
+}
+
 // The mockOffsetStash implements the OffsetStash interface for test
 // purposes.
 type mockOffsetStash struct {
