@@ -100,6 +100,15 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 	return err
 }
 
+// Stop the consumer.
+func (c *Consumer) Stop() error {
+	close(c.quit)
+	defer c.wg.Wait()
+
+	err := c.consumer.Close()
+	return errors.Wrap(err, "failed to close the consumer properly")
+}
+
 func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 	for {
 		select {
