@@ -2,7 +2,10 @@ package handler
 
 import "github.com/heetch/felice/message"
 
-// A Handler handles a Message.
+// Handler is the interface for handling consumed messages.  You can
+// either add a compliant HandleMessage function to some type by hand,
+// or make use of the HandlerFunc.  Note that felice Handlers recieve
+// felice Message types.
 type Handler interface {
 	HandleMessage(*message.Message) error
 }
