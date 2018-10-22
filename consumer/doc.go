@@ -3,4 +3,4 @@
 // from a Kafka cluster.
 package consumer
 
-// BUG(tealeg): Document this fully when we've implemente the Consumer type.
+// BUG(tealeg): Document this fully when we've implemented the Consumer type.
