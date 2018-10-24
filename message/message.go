@@ -9,9 +9,9 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Message represents a message to be sent via Kafka, or recieved from
+// Message represents a message to be sent via Kafka, or received from
 // it.  When using Felice's Consumer, any Handlers that you register
-// will recieve Messages as they're arguments.  When using the Felice
+// will receive Messages as they're arguments.  When using the Felice
 // Producer, you will be sending Messages.  When making a Message to
 // be sent it essential that you use the New function to do so.
 type Message struct {
