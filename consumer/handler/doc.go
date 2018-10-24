@@ -1,12 +1,12 @@
 // The handler package defines the mechanisms by which a received
 // message can be handled, and how handlers themselves can be managed.
 // The most obvious way to use the handler package is via the consumer
-// package, but this isn't an absolute requirement.  We do however
+// package, but this isn't an absolute requirement. We do however
 // require that the messages handled are felice's message.Message
 // type.
 //
 // The Handler interface defines the signature for all felice
-// Handlers.  There are two common ways to comply with this interface.
+// Handlers. There are two common ways to comply with this interface.
 // The first is simply to create a type with the HandleMessage
 // function:
 //
@@ -27,10 +27,10 @@
 //        fmt.Printf("%+v", *msg)
 //    })
 //
-// Handlers can also be managed in Collections.  The Collection struct
+// Handlers can also be managed in Collections. The Collection struct
 // will allow exactly one handler to be associated with each topic,
 // and will, on demand return a list of all topics for which a handler
-// has been registered.  For example:
+// has been registered. For example:
 //
 //    col := handler.Collection{}
 //

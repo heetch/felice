@@ -43,8 +43,8 @@ func (h *Collection) Topics() []string {
 }
 
 // Set associates the given Handler to the given Topic within the
-// collection.  If a Handler was already associated with the Topic,
-// then that association will be lost and replaced by the new one.  It
+// collection. If a Handler was already associated with the Topic,
+// then that association will be lost and replaced by the new one. It
 // is safe to use Set from concurrent code.
 func (h *Collection) Set(topic string, handler Handler) {
 	h.Lock()
