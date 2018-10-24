@@ -18,7 +18,7 @@ func Header(k, v string) Option {
 }
 
 // Key is an Option that specifies a key for the message. You should
-// only pass ths once to the New function, but if you pass it multiple
+// only pass this once to the New function, but if you pass it multiple
 // times, the value set by the final one you pass will be what is set
 // on the Message when it is returned by New.
 func Key(key string) Option {
