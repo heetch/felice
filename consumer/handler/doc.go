@@ -34,12 +34,14 @@
 //
 //    col := handler.Collection{}
 //
-//    col.Set("my-topic", handler.HandlerFunc(func(msg *message.Message)) {
+//    col.Set("my-topic", handler.HandlerFunc(func(msg *message.Message) error) {
 //        fmt.Printf("Got message on my-topic: %+v", *msg)
+//        return nil
 //    })
 //
-//    col.Set("your-topic", handler.HandlerFunc(func(msg *message.Message)) {
+//    col.Set("your-topic", handler.HandlerFunc(func(msg *message.Message) error) {
 //        fmt.Printf("Got message on your-topic: %+v", msg)
+//        return nil
 //    })
 //
 //    yourHandler, ok := col.Get("your-topic")
