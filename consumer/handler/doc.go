@@ -18,7 +18,7 @@
 //
 // This approach has the advantage of not actually requiring you to
 // import the handler package when defining handlers for use with the
-// conusmer.Consumer.
+// consumer.Consumer.
 //
 // The second approach is to cast a function to the HandlerFunc type
 // defined in this package:
