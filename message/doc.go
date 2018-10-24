@@ -1,7 +1,7 @@
 // The message package contains the Message type.  When using
 // the felice Producer, Message will be the type you send.
 // When using the felice Consumer, you will register handlers that
-// recieve the Message type.
+// receive the Message type.
 //
 // You can create a new Message by calling New:
 //
@@ -11,7 +11,7 @@
 // marshaled with encoding/json.
 //
 // New can also be passed zero, one or many additional Options.  An
-// Option is a function that recieves a pointer to the Message and can
+// Option is a function that receives a pointer to the Message and can
 // modify it directly prior to it being returned by New.  Two
 // predefined Options exists in felice: Header and Key.
 //
