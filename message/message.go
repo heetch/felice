@@ -13,7 +13,7 @@ import (
 // it. When using Felice's Consumer, any Handlers that you register
 // will receive Messages as they're arguments. When using the Felice
 // Producer, you will be sending Messages. When making a Message to
-// be sent it essential that you use the New function to do so.
+// be sent it is essential that you use the New function to do so.
 type Message struct {
 	// The Kafka topic this Message applies to.
 	Topic string
