@@ -10,9 +10,9 @@ import (
 )
 
 // Message represents a message to be sent via Kafka, or received from
-// it.  When using Felice's Consumer, any Handlers that you register
-// will receive Messages as they're arguments.  When using the Felice
-// Producer, you will be sending Messages.  When making a Message to
+// it. When using Felice's Consumer, any Handlers that you register
+// will receive Messages as they're arguments. When using the Felice
+// Producer, you will be sending Messages. When making a Message to
 // be sent it essential that you use the New function to do so.
 type Message struct {
 	// The Kafka topic this Message applies to.
@@ -42,7 +42,7 @@ type Message struct {
 }
 
 // New creates a new Message, correctly configured for use with the
-// felice Producer.  You should not attempt to create Message types by
+// felice Producer. You should not attempt to create Message types by
 // hand (unless you really know what you're doing! - I'm just some
 // documentation, not the police).
 func New(topic string, value interface{}, opts ...Option) (*Message, error) {
