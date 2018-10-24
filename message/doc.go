@@ -8,7 +8,11 @@
 //    msg := New("my-topic", "simple string message")
 //
 // The value passed as the 2nd argument can be any Go type that can be
-// marshaled with encoding/json.
+// marshalled with encoding/json.  Two default headers are added to
+// all Messages:
+//
+// - Message-Id : a universally unique ID for the message
+// - Produced-At : the current time in the UTC timezone.
 //
 // New can also be passed zero, one or many additional Options. An
 // Option is a function that receives a pointer to the Message and can

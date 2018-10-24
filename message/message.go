@@ -45,6 +45,12 @@ type Message struct {
 // felice Producer. You should not attempt to create Message types by
 // hand (unless you really know what you're doing! - I'm just some
 // documentation, not the police).
+//
+// Two headers will be added to all Messages:
+//
+// - Message-Id : a universally unique ID for the message
+// - Produced-At : the current time in the UTC timezone.
+//
 func New(topic string, value interface{}, opts ...Option) (*Message, error) {
 	if topic == "" {
 		return nil, fmt.Errorf("messages require a non-empty topic")
