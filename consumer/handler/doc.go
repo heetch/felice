@@ -1,4 +1,4 @@
-// The handler package defines the mechanisms by which a recieved
+// The handler package defines the mechanisms by which a received
 // message can be handled, and how handlers themselves can be managed.
 // The most obvious way to use the handler package is via the consumer
 // package, but this isn't an absolute requirement.  We do however
