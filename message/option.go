@@ -3,7 +3,7 @@ package message
 // Option is a function type that receives a pointer to a Message and
 // modifies it in place. Options are intended to customize a message
 // before sending it. You can do this either by passing them as
-// paramters to the New function, or by calling them directly against
+// parameters to the New function, or by calling them directly against
 // a Message.
 type Option func(*Message)
 
