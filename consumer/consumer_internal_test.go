@@ -133,7 +133,7 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	mos := &mockOffsetStash{}
 	c.handleMessages(ch, mos, hwm)
 
-	require.Equal(t, 1, mmh.ReportsCount)
+	require.Equal(t, 1, mmh.ReportCount)
 }
 
 // Consumer.convertMessage converts a sarama.ConsumerMessage into our
@@ -261,17 +261,17 @@ func (pc *PartitionConsumerMock) ResetOffset(offset int64, metadata string) {}
 
 // metricsHook implements the MetricsHook interface for testing purposes
 type metricsHook struct {
-	ReportsCount int
-	t            *testing.T
-	testCase     func(msg message.Message, metadatas map[string]string) (string, func(*testing.T))
+	ReportCount int
+	t           *testing.T
+	testCase    func(msg message.Message, metadatas map[string]string) (string, func(*testing.T))
 }
 
-// Reports counts how many times it has been called, and executes any
+// Report counts how many times it has been called, and executes any
 // testCase that has been added to the metricsHook.  This allows us to
 // reuse the metricsHook type every time we want to make assertions
 // about the information it has been provided.
-func (mmh *metricsHook) Reports(msg message.Message, metadatas map[string]string) {
-	mmh.ReportsCount++
+func (mmh *metricsHook) Report(msg message.Message, metadatas map[string]string) {
+	mmh.ReportCount++
 	mmh.t.Run(mmh.testCase(msg, metadatas))
 }
 
