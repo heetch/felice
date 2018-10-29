@@ -21,7 +21,7 @@ type Consumer struct {
 	wg            sync.WaitGroup
 	quit          chan struct{}
 	RetryInterval time.Duration
-	metrics       MetricsHook
+	Metrics       MetricsHook
 }
 
 // Handle registers the handler for the given topic.
@@ -44,11 +44,6 @@ func (c *Consumer) setup() {
 	if c.RetryInterval == 0 {
 		c.RetryInterval = time.Second
 	}
-}
-
-// SetMetricsHook registers a MetricsHook on the Consumer that will be invoked with datas about the handled messages.
-func (c *Consumer) SetMetricsHook(mh MetricsHook) {
-	c.metrics = mh
 }
 
 func newClusterConfig(clientID string) *cluster.Config {
@@ -143,8 +138,8 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			err := h.(handler.Handler).HandleMessage(m)
 			if err == nil {
 				offset.MarkOffset(msg, "")
-				if c.metrics != nil {
-					c.metrics.Reports(*m, map[string]string{
+				if c.Metrics != nil {
+					c.Metrics.Reports(*m, map[string]string{
 						"attempts":        strconv.Itoa(attempts),
 						"msgOffset":       strconv.FormatInt(msg.Offset, 10),
 						"remainingOffset": strconv.FormatInt(max.HighWaterMarkOffset()-msg.Offset, 10),
