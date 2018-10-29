@@ -13,6 +13,14 @@
   version = "v1.19.0"
 
 [[projects]]
+  digest = "1:526d64d0a3ac6c24875724a9355895be56a21f89a5d3ab5ba88d91244269a7d8"
+  name = "github.com/bsm/sarama-cluster"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c618e605e15c0d7535f6c96ff8efbb0dba4fd66c"
+  version = "v2.1.15"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -112,6 +120,7 @@
   input-imports = [
     "github.com/Shopify/sarama",
     "github.com/Shopify/sarama/mocks",
+    "github.com/bsm/sarama-cluster",
     "github.com/pkg/errors",
     "github.com/satori/go.uuid",
     "github.com/stretchr/testify/require",

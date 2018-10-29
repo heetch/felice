@@ -36,6 +36,10 @@
   name = "github.com/Shopify/sarama"
   version = "1.16.0"
 
+[[constraint]]
+  name = "github.com/bsm/sarama-cluster"
+  version = "2.1.12"
+
 [prune]
   go-tests = true
   unused-packages = true
