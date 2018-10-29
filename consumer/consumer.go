@@ -21,7 +21,7 @@ type Consumer struct {
 	wg            sync.WaitGroup
 	quit          chan struct{}
 	RetryInterval time.Duration
-	Metrics       MetricsHook
+	Metrics       MetricsReporter
 }
 
 // Handle registers the handler for the given topic.
@@ -139,7 +139,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			if err == nil {
 				offset.MarkOffset(msg, "")
 				if c.Metrics != nil {
-					c.Metrics.Reports(*m, map[string]string{
+					c.Metrics.Report(*m, map[string]string{
 						"attempts":        strconv.Itoa(attempts),
 						"msgOffset":       strconv.FormatInt(msg.Offset, 10),
 						"remainingOffset": strconv.FormatInt(max.HighWaterMarkOffset()-msg.Offset, 10),
@@ -172,10 +172,10 @@ func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *message.Message {
 	return &msg
 }
 
-// MetricsHook is a interface that can be passed to set metrics hook to receive metrics
+// MetricsReporter is a interface that can be passed to set metrics hook to receive metrics
 // from the consumer as it handles messages.
-type MetricsHook interface {
-	Reports(message.Message, map[string]string)
+type MetricsReporter interface {
+	Report(message.Message, map[string]string)
 }
 
 type offsetStash interface {
