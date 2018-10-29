@@ -100,8 +100,8 @@ func TestConsumerHandleMessages(t *testing.T) {
 }
 
 // Consumer.handleMessages will send message data, and some associated
-// metadata to a to metrics hook function that has been provided to
-// the consumer via the Consumer.SetMetricsHook function.
+// metadata to a metrics hook function that has been provided to
+// the consumer via the Consumer.Metrics field.
 func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c := Consumer{}
 	mmh := &metricsHook{
@@ -117,7 +117,7 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 			}
 		},
 	}
-	c.SetMetricsHook(mmh)
+	c.Metrics = mmh
 	handler := &testHandler{}
 
 	c.Handle("topic", handler)
@@ -134,7 +134,6 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c.handleMessages(ch, mos, hwm)
 
 	require.Equal(t, 1, mmh.ReportsCount)
-
 }
 
 // Consumer.convertMessage converts a sarama.ConsumerMessage into our
