@@ -2,6 +2,8 @@ package handler
 
 import (
 	"sync"
+
+	"github.com/heetch/felice/common"
 )
 
 // A Collection is set of Handler types, keyed by topic. Only one
@@ -51,6 +53,7 @@ func (h *Collection) Set(topic string, handler Handler) {
 	if h.handlers == nil {
 		h.handlers = make(map[string]Handler)
 	}
+	common.Logger.Printf("Registered handler. topic=%q\n", topic)
 	h.handlers[topic] = handler
 	h.Unlock()
 }
