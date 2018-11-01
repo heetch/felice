@@ -8,6 +8,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
+	"github.com/heetch/felice/common"
 	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
 	"github.com/pkg/errors"
@@ -22,6 +23,7 @@ type Consumer struct {
 	quit          chan struct{}
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
+	NewConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error)
 }
 
 // Handle registers the handler for the given topic.
@@ -43,6 +45,9 @@ func (c *Consumer) setup() {
 
 	if c.RetryInterval == 0 {
 		c.RetryInterval = time.Second
+	}
+	if c.NewConsumer == nil {
+		c.NewConsumer = cluster.NewConsumer
 	}
 }
 
@@ -69,7 +74,7 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 
 	consumerGroup := fmt.Sprintf("%s-consumer-group", clientID)
 	var err error
-	c.consumer, err = cluster.NewConsumer(
+	c.consumer, err = c.NewConsumer(
 		addrs,
 		consumerGroup,
 		topics,
@@ -88,7 +93,9 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 			// annoying little issue.
 			err = errors.Wrap(err, "__consumer_offsets topic doesn't yet exist, either because no client has yet requested an offset, or because this consumer group is not yet functioning at startup or after rebalancing.")
 		}
-		return errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
+		err = errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
+		common.Logger.Println(err)
+		return err
 	}
 
 	err = c.handlePartitions(c.consumer.Partitions())
@@ -185,3 +192,11 @@ type offsetStash interface {
 type highWaterMarker interface {
 	HighWaterMarkOffset() int64
 }
+
+// func NewConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error) {
+// 	return cluster.NewConsumer(
+// 		addrs,
+// 		consumerGroup,
+// 		topics,
+// 		c.config)
+// }
