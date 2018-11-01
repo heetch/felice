@@ -2,128 +2,95 @@
 
 
 [[projects]]
-  digest = "1:b6957a1836b6d7e51e5a71391f5c08fa5d866f57e4ac425fa5f183d518a5657b"
   name = "github.com/Shopify/sarama"
   packages = [
     ".",
-    "mocks",
+    "mocks"
   ]
-  pruneopts = "UT"
   revision = "ec843464b50d4c8b56403ec9d589cf41ea30e722"
   version = "v1.19.0"
 
 [[projects]]
-  digest = "1:526d64d0a3ac6c24875724a9355895be56a21f89a5d3ab5ba88d91244269a7d8"
   name = "github.com/bsm/sarama-cluster"
   packages = ["."]
-  pruneopts = "UT"
   revision = "c618e605e15c0d7535f6c96ff8efbb0dba4fd66c"
   version = "v2.1.15"
 
 [[projects]]
-  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
-  pruneopts = "UT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:1f0c7ab489b407a7f8f9ad16c25a504d28ab461517a971d341388a56156c1bd7"
   name = "github.com/eapache/go-resiliency"
   packages = ["breaker"]
-  pruneopts = "UT"
   revision = "ea41b0fad31007accc7f806884dcdf3da98b79ce"
   version = "v1.1.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:79f16588b5576b1b3cd90e48d2374cc9a1a8776862d28d8fd0f23b0e15534967"
   name = "github.com/eapache/go-xerial-snappy"
   packages = ["."]
-  pruneopts = "UT"
   revision = "776d5712da21bc4762676d614db1d8a64f4238b0"
 
 [[projects]]
-  digest = "1:444b82bfe35c83bbcaf84e310fb81a1f9ece03edfed586483c869e2c046aef69"
   name = "github.com/eapache/queue"
   packages = ["."]
-  pruneopts = "UT"
   revision = "44cc805cf13205b55f69e14bcb69867d1ae92f98"
   version = "v1.1.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:4a0c6bb4805508a6287675fac876be2ac1182539ca8a32468d8128882e9d5009"
   name = "github.com/golang/snappy"
   packages = ["."]
-  pruneopts = "UT"
   revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
-  digest = "1:e39a5ee8fcbec487f8fc68863ef95f2b025e0739b0e4aa55558a2b4cf8f0ecf0"
   name = "github.com/pierrec/lz4"
   packages = [
     ".",
-    "internal/xxh32",
+    "internal/xxh32"
   ]
-  pruneopts = "UT"
   revision = "635575b42742856941dbc767b44905bb9ba083f6"
   version = "v2.0.7"
 
 [[projects]]
-  digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
   name = "github.com/pkg/errors"
   packages = ["."]
-  pruneopts = "UT"
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
 
 [[projects]]
-  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
-  pruneopts = "UT"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:c4556a44e350b50a490544d9b06e9fba9c286c21d6c0e47f54f3a9214597298c"
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
-  pruneopts = "UT"
   revision = "e2704e165165ec55d062f5919b4b29494e9fa790"
 
 [[projects]]
   branch = "master"
-  digest = "1:ff6b0586c0621a76832cf783eee58cbb9d9795d2ce8acbc199a4131db11c42a9"
   name = "github.com/satori/go.uuid"
   packages = ["."]
-  pruneopts = "UT"
   revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
 
 [[projects]]
-  digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
-    "require",
+    "require"
   ]
-  pruneopts = "UT"
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = [
-    "github.com/Shopify/sarama",
-    "github.com/Shopify/sarama/mocks",
-    "github.com/bsm/sarama-cluster",
-    "github.com/pkg/errors",
-    "github.com/satori/go.uuid",
-    "github.com/stretchr/testify/require",
-  ]
+  inputs-digest = "5ecbe79e872821e53f3cf64781b0715000699ccd2460a556a4fa3421a3a2a491"
   solver-name = "gps-cdcl"
   solver-version = 1
