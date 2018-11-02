@@ -14,16 +14,47 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ClusterConsumer is an interface that makes it possible to fake the cluster.Consumer for testing purposes.
+type ClusterConsumer interface {
+	MarkOffset(*sarama.ConsumerMessage, string)
+	Partitions() <-chan cluster.PartitionConsumer
+	Close() error
+}
+
+// type ClusterConsumer struct {
+// 	c *cluster.Consumer
+// }
+
+// func NewClusterConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (ClusterConsumer, error) {
+// 	con, err := cluster.NewConsumer(addrs, groupID, topics, config)
+// 	return &ClusterConsumer{
+// 		c: con,
+// 	}, err
+// }
+
+// //
+// func (cc *ClusterConsumer) Partitions() <-chan cluster.PartitionConsumer {
+// 	return cc.c.Partitions()
+// }
+
+// func (cc *ClusterConsumer) MarkOffset(msg *sarama.ConsumerMessage, metadata string) {
+// 	cc.c.MarkOffset(msg, metadata)
+// }
+
+// func (cc *ClusterConsumer) Close() error {
+// 	return cc.c.Close()
+// }
+
 // Consumer is a Kafka consumer.
 type Consumer struct {
-	consumer      *cluster.Consumer
+	consumer      ClusterConsumer
 	config        *cluster.Config
 	handlers      *handler.Collection
 	wg            sync.WaitGroup
 	quit          chan struct{}
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
-	NewConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error)
+	NewConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (ClusterConsumer, error)
 }
 
 // Handle registers the handler for the given topic.
@@ -119,22 +150,27 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 		select {
 		case part, ok := <-ch:
 			if !ok {
-				return fmt.Errorf("partition consumer channel closed")
+				err := fmt.Errorf("partition consumer channel closed")
+				common.Logger.Println(err)
+				return err
 			}
 
 			c.wg.Add(1)
 			go func(pc cluster.PartitionConsumer) {
 				defer c.wg.Done()
-
-				c.handleMessages(pc.Messages(), c.consumer, pc)
+				c.handleMessages(pc.Messages(), c.consumer, pc, pc.Topic(), pc.Partition())
 			}(part)
 		case <-c.quit:
+			common.Logger.Println("partition handler terminating")
 			return nil
 		}
 	}
 }
 
-func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker) {
+func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker, topic string, partition int32) {
+	logSuffix := fmt.Sprintf(", topic=%q, partition=%d\n", topic, partition)
+	common.Logger.Println("partition messages - reading" + logSuffix)
+
 	for msg := range ch {
 		var attempts int
 
@@ -161,6 +197,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			select {
 			case <-time.After(c.RetryInterval):
 			case <-c.quit:
+				common.Logger.Println("partition messages - closing" + logSuffix)
 				return
 			}
 		}
