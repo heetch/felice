@@ -47,7 +47,10 @@ func (c *Consumer) setup() {
 		c.RetryInterval = time.Second
 	}
 	if c.NewConsumer == nil {
-		c.NewConsumer = cluster.NewConsumer
+		c.NewConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (ClusterConsumer, error) {
+			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
+			return ClusterConsumer(cons), err
+		}
 	}
 }
 
