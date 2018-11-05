@@ -14,8 +14,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ClusterConsumer is an interface that makes it possible to fake the cluster.Consumer for testing purposes.
-type ClusterConsumer interface {
+// clusterConsumer is an interface that makes it possible to fake the cluster.Consumer for testing purposes.
+type clusterConsumer interface {
 	MarkOffset(*sarama.ConsumerMessage, string)
 	Partitions() <-chan cluster.PartitionConsumer
 	Close() error
@@ -23,14 +23,14 @@ type ClusterConsumer interface {
 
 // Consumer is a Kafka consumer.
 type Consumer struct {
-	consumer      ClusterConsumer
+	consumer      clusterConsumer
 	config        *cluster.Config
 	handlers      *handler.Collection
 	wg            sync.WaitGroup
 	quit          chan struct{}
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
-	NewConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (ClusterConsumer, error)
+	NewConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 }
 
 // Handle registers the handler for the given topic.
@@ -54,9 +54,9 @@ func (c *Consumer) setup() {
 		c.RetryInterval = time.Second
 	}
 	if c.NewConsumer == nil {
-		c.NewConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (ClusterConsumer, error) {
+		c.NewConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
-			return ClusterConsumer(cons), err
+			return clusterConsumer(cons), err
 		}
 	}
 }
