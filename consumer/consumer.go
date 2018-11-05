@@ -30,7 +30,7 @@ type Consumer struct {
 	quit          chan struct{}
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
-	NewConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
+	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 }
 
 // Handle registers the handler for the given topic.
@@ -53,9 +53,9 @@ func (c *Consumer) setup() {
 	if c.RetryInterval == 0 {
 		c.RetryInterval = time.Second
 	}
-	if c.NewConsumer == nil {
-		c.NewConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
-			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
+	if c.newConsumer == nil {
+		c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
+			cons, err := cluster.newConsumer(addrs, groupID, topics, config)
 			return clusterConsumer(cons), err
 		}
 	}
@@ -84,7 +84,7 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 
 	consumerGroup := fmt.Sprintf("%s-consumer-group", clientID)
 	var err error
-	c.consumer, err = c.NewConsumer(
+	c.consumer, err = c.newConsumer(
 		addrs,
 		consumerGroup,
 		topics,
@@ -209,8 +209,8 @@ type highWaterMarker interface {
 	HighWaterMarkOffset() int64
 }
 
-// func NewConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error) {
-// 	return cluster.NewConsumer(
+// func newConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error) {
+// 	return cluster.newConsumer(
 // 		addrs,
 // 		consumerGroup,
 // 		topics,

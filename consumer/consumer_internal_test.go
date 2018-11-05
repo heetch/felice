@@ -329,7 +329,7 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	tl := common.NewTestLogger(t)
 	defer tl.TearDown()
 	c := &Consumer{}
-	c.NewConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
+	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work!")
 	}
 	c.Handle("foo", handler.HandlerFunc(func(m *message.Message) error {
