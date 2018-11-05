@@ -21,30 +21,6 @@ type ClusterConsumer interface {
 	Close() error
 }
 
-// type ClusterConsumer struct {
-// 	c *cluster.Consumer
-// }
-
-// func NewClusterConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (ClusterConsumer, error) {
-// 	con, err := cluster.NewConsumer(addrs, groupID, topics, config)
-// 	return &ClusterConsumer{
-// 		c: con,
-// 	}, err
-// }
-
-// //
-// func (cc *ClusterConsumer) Partitions() <-chan cluster.PartitionConsumer {
-// 	return cc.c.Partitions()
-// }
-
-// func (cc *ClusterConsumer) MarkOffset(msg *sarama.ConsumerMessage, metadata string) {
-// 	cc.c.MarkOffset(msg, metadata)
-// }
-
-// func (cc *ClusterConsumer) Close() error {
-// 	return cc.c.Close()
-// }
-
 // Consumer is a Kafka consumer.
 type Consumer struct {
 	consumer      ClusterConsumer
