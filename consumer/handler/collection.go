@@ -1,9 +1,8 @@
 package handler
 
 import (
+	"log"
 	"sync"
-
-	"github.com/heetch/felice/common"
 )
 
 // A Collection is set of Handler types, keyed by topic. Only one
@@ -16,6 +15,7 @@ import (
 type Collection struct {
 	sync.RWMutex
 	handlers map[string]Handler
+	Logger   *log.Logger
 }
 
 // Get returns the Handler associated with a given topic, and a
@@ -53,7 +53,9 @@ func (h *Collection) Set(topic string, handler Handler) {
 	if h.handlers == nil {
 		h.handlers = make(map[string]Handler)
 	}
-	common.Logger.Printf("Registered handler. topic=%q\n", topic)
+	if h.Logger != nil {
+		h.Logger.Printf("Registered handler. topic=%q\n", topic)
+	}
 	h.handlers[topic] = handler
 	h.Unlock()
 }

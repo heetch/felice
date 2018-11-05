@@ -2,13 +2,14 @@ package consumer
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
-	"github.com/heetch/felice/common"
 	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
 	"github.com/pkg/errors"
@@ -31,6 +32,7 @@ type Consumer struct {
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
 	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
+	Logger        *log.Logger
 }
 
 // Handle registers the handler for the given topic.
@@ -42,8 +44,11 @@ func (c *Consumer) Handle(topic string, h handler.Handler) {
 }
 
 func (c *Consumer) setup() {
+	if c.Logger == nil {
+		c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
+	}
 	if c.handlers == nil {
-		c.handlers = &handler.Collection{}
+		c.handlers = &handler.Collection{Logger: c.Logger}
 	}
 
 	if c.quit == nil {
@@ -55,7 +60,7 @@ func (c *Consumer) setup() {
 	}
 	if c.newConsumer == nil {
 		c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
-			cons, err := cluster.newConsumer(addrs, groupID, topics, config)
+			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
 			return clusterConsumer(cons), err
 		}
 	}
@@ -104,7 +109,6 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 			err = errors.Wrap(err, "__consumer_offsets topic doesn't yet exist, either because no client has yet requested an offset, or because this consumer group is not yet functioning at startup or after rebalancing.")
 		}
 		err = errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
-		common.Logger.Println(err)
 		return err
 	}
 
@@ -126,9 +130,7 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 		select {
 		case part, ok := <-ch:
 			if !ok {
-				err := fmt.Errorf("partition consumer channel closed")
-				common.Logger.Println(err)
-				return err
+				return fmt.Errorf("partition consumer channel closed")
 			}
 
 			c.wg.Add(1)
@@ -137,15 +139,18 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 				c.handleMessages(pc.Messages(), c.consumer, pc, pc.Topic(), pc.Partition())
 			}(part)
 		case <-c.quit:
-			common.Logger.Println("partition handler terminating")
+			if c.Logger != nil {
+				c.Logger.Println("partition handler terminating")
+			}
 			return nil
+
 		}
 	}
 }
 
 func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker, topic string, partition int32) {
 	logSuffix := fmt.Sprintf(", topic=%q, partition=%d\n", topic, partition)
-	common.Logger.Println("partition messages - reading" + logSuffix)
+	c.Logger.Println("partition messages - reading" + logSuffix)
 
 	for msg := range ch {
 		var attempts int
@@ -173,7 +178,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			select {
 			case <-time.After(c.RetryInterval):
 			case <-c.quit:
-				common.Logger.Println("partition messages - closing" + logSuffix)
+				c.Logger.Println("partition messages - closing" + logSuffix)
 				return
 			}
 		}
