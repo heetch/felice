@@ -1,7 +1,10 @@
 package consumer
 
 import (
+	"bytes"
 	"fmt"
+	"log"
+	"regexp"
 	"testing"
 	"time"
 
@@ -10,10 +13,47 @@ import (
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/stretchr/testify/require"
 
-	"github.com/heetch/felice/common"
 	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
 )
+
+const (
+	logRegexPrefix = "\\[Felice\\] [0-9]*/[0-1][0-9]/[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] "
+)
+
+// TestLogger grabs logs in a buffer so we can later make assertions
+// about them.
+type TestLogger struct {
+	buf    *bytes.Buffer
+	Logger *log.Logger
+	t      *testing.T
+}
+
+// NewTestLogger constructs a test logger we can make assertions against
+func NewTestLogger(t *testing.T) *TestLogger {
+	tl := &TestLogger{
+		buf: bytes.NewBuffer([]byte{}),
+		t:   t,
+	}
+	tl.Logger = log.New(tl.buf, "[Felice] ", log.LstdFlags)
+	return tl
+}
+
+// Skip will jump over a log line we don't care about.  If there's an
+// error reading from the buffer the test will fail.
+func (tl *TestLogger) SkipLogLine(reason string) {
+	line, err := tl.buf.ReadString('\n')
+	tl.t.Logf(line)
+	require.NoError(tl.t, err)
+	tl.t.Logf("Skipping log line: %s", reason)
+}
+
+//
+func (tl *TestLogger) LogLineMatches(match string) {
+	content, err := tl.buf.ReadString('\n')
+	require.NoError(tl.t, err)
+	require.Regexp(tl.t, regexp.MustCompile(logRegexPrefix+match), content)
+}
 
 // PartitionConsumerMock implements the sarama's PartitionConsumer
 // interface for testing purposes.  The sarama library already defines
@@ -99,23 +139,20 @@ func TestSetUp(t *testing.T) {
 
 // Consumer.handlePartitions exits when we close the channel of PartitionConsumers
 func TestConsumerHandlePartitionsOnClosedChannel(t *testing.T) {
-	tl := common.NewTestLogger(t)
-	defer tl.TearDown()
-	c := Consumer{}
+	tl := NewTestLogger(t)
+	c := Consumer{Logger: tl.Logger}
 	ch := make(chan cluster.PartitionConsumer)
 
 	close(ch)
 	err := c.handlePartitions(ch)
 	expected := "partition consumer channel closed"
 	require.EqualError(t, err, expected)
-	tl.LogLineMatches(expected)
 }
 
 // Consumer.handlePartitions exits when we send something on the Quit channel
 func TestConsumerHandlePartitionsWithQuit(t *testing.T) {
-	tl := common.NewTestLogger(t)
-	defer tl.TearDown()
-	c := Consumer{}
+	tl := NewTestLogger(t)
+	c := Consumer{Logger: tl.Logger}
 	ch := make(chan cluster.PartitionConsumer)
 	c.quit = make(chan struct{}, 1)
 
@@ -128,9 +165,8 @@ func TestConsumerHandlePartitionsWithQuit(t *testing.T) {
 // Consumer.handlePartitions provides a channel of messages, from each
 // PartitionConsumer, to the handleMessages function.
 func TestConsumerHandlePartitions(t *testing.T) {
-	tl := common.NewTestLogger(t)
-	defer tl.TearDown()
-	c := Consumer{}
+	tl := NewTestLogger(t)
+	c := Consumer{Logger: tl.Logger}
 	ch := make(chan cluster.PartitionConsumer, 1)
 
 	pcm := &PartitionConsumerMock{}
@@ -141,16 +177,14 @@ func TestConsumerHandlePartitions(t *testing.T) {
 	require.EqualError(t, err, expected)
 	c.wg.Wait()
 	require.Equal(t, 1, pcm.MessagesCount)
-	tl.LogLineMatches(expected)
 }
 
 // Consumer.handleMessages calls the per-topic Handler for each
 // message that arrives.
 func TestConsumerHandleMessages(t *testing.T) {
-	tl := common.NewTestLogger(t)
-	defer tl.TearDown()
+	tl := NewTestLogger(t)
 
-	c := Consumer{}
+	c := Consumer{Logger: tl.Logger}
 	handler := &testHandler{
 		t: t,
 		testCase: func(m *message.Message) (string, func(t *testing.T)) {
@@ -326,9 +360,8 @@ func (h *testHandler) HandleMessage(m *message.Message) error {
 
 // Serve emits logs when it cannot create a new consumer
 func TestServeLogsErrorFromNewConsumer(t *testing.T) {
-	tl := common.NewTestLogger(t)
-	defer tl.TearDown()
-	c := &Consumer{}
+	tl := NewTestLogger(t)
+	c := &Consumer{Logger: tl.Logger}
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work!")
 	}
@@ -337,6 +370,4 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	}))
 	err := c.Serve("foo")
 	require.Error(t, err)
-	tl.SkipLogLine("registering handler")
-	tl.LogLineMatches(`failed to create a consumer for topics \[foo\] in consumer group "foo-consumer-group": oh noes! it doesn't work!`)
 }
