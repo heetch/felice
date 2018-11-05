@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/heetch/felice/common"
+	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
 )
 
@@ -320,4 +322,21 @@ func (h *testHandler) HandleMessage(m *message.Message) error {
 		h.t.Run(h.testCase(m))
 	}
 	return nil
+}
+
+// Serve emits logs when it cannot create a new consumer
+func TestServeLogsErrorFromNewConsumer(t *testing.T) {
+	tl := common.NewTestLogger(t)
+	defer tl.TearDown()
+	c := &Consumer{}
+	c.NewConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
+		return nil, fmt.Errorf("oh noes! it doesn't work!")
+	}
+	c.Handle("foo", handler.HandlerFunc(func(m *message.Message) error {
+		return nil
+	}))
+	err := c.Serve("foo")
+	require.Error(t, err)
+	tl.SkipLogLine("registering handler")
+	tl.LogLineMatches(`failed to create a consumer for topics \[foo\] in consumer group "foo-consumer-group": oh noes! it doesn't work!`)
 }
