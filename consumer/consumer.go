@@ -24,15 +24,16 @@ type clusterConsumer interface {
 
 // Consumer is a Kafka consumer.
 type Consumer struct {
+	RetryInterval time.Duration
+	Metrics       MetricsReporter
+	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
+	Logger        *log.Logger	
+	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 	consumer      clusterConsumer
 	config        *cluster.Config
 	handlers      *handler.Collection
 	wg            sync.WaitGroup
 	quit          chan struct{}
-	RetryInterval time.Duration
-	Metrics       MetricsReporter
-	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
-	Logger        *log.Logger
 }
 
 // Handle registers the handler for the given topic.
@@ -139,9 +140,7 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 				c.handleMessages(pc.Messages(), c.consumer, pc, pc.Topic(), pc.Partition())
 			}(part)
 		case <-c.quit:
-			if c.Logger != nil {
-				c.Logger.Println("partition handler terminating")
-			}
+			c.Logger.Println("partition handler terminating")
 			return nil
 
 		}
