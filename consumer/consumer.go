@@ -214,10 +214,3 @@ type highWaterMarker interface {
 	HighWaterMarkOffset() int64
 }
 
-// func newConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error) {
-// 	return cluster.newConsumer(
-// 		addrs,
-// 		consumerGroup,
-// 		topics,
-// 		c.config)
-// }
