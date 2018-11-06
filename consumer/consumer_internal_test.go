@@ -24,7 +24,7 @@ const (
 // TestLogger grabs logs in a buffer so we can later make assertions
 // about them.
 type TestLogger struct {
-	buf    *bytes.Buffer
+	buf    bytes.Buffer
 	Logger *log.Logger
 	t      *testing.T
 }
@@ -32,10 +32,9 @@ type TestLogger struct {
 // NewTestLogger constructs a test logger we can make assertions against
 func NewTestLogger(t *testing.T) *TestLogger {
 	tl := &TestLogger{
-		buf: bytes.NewBuffer([]byte{}),
 		t:   t,
 	}
-	tl.Logger = log.New(tl.buf, "[Felice] ", log.LstdFlags)
+	tl.Logger = log.New(&tl.buf, "[Felice] ", log.LstdFlags)
 	return tl
 }
 
