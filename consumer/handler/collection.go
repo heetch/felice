@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"sync"
 )
 
@@ -14,6 +15,7 @@ import (
 type Collection struct {
 	sync.RWMutex
 	handlers map[string]Handler
+	Logger   *log.Logger
 }
 
 // Get returns the Handler associated with a given topic, and a
@@ -50,6 +52,9 @@ func (h *Collection) Set(topic string, handler Handler) {
 	h.Lock()
 	if h.handlers == nil {
 		h.handlers = make(map[string]Handler)
+	}
+	if h.Logger != nil {
+		h.Logger.Printf("Registered handler. topic=%q\n", topic)
 	}
 	h.handlers[topic] = handler
 	h.Unlock()
