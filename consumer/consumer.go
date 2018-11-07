@@ -2,6 +2,8 @@ package consumer
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -13,15 +15,25 @@ import (
 	"github.com/pkg/errors"
 )
 
+// clusterConsumer is an interface that makes it possible to fake the cluster.Consumer for testing purposes.
+type clusterConsumer interface {
+	MarkOffset(*sarama.ConsumerMessage, string)
+	Partitions() <-chan cluster.PartitionConsumer
+	Close() error
+}
+
 // Consumer is a Kafka consumer.
 type Consumer struct {
-	consumer      *cluster.Consumer
+	RetryInterval time.Duration
+	Metrics       MetricsReporter
+	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
+	Logger        *log.Logger	
+	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
+	consumer      clusterConsumer
 	config        *cluster.Config
 	handlers      *handler.Collection
 	wg            sync.WaitGroup
 	quit          chan struct{}
-	RetryInterval time.Duration
-	Metrics       MetricsReporter
 }
 
 // Handle registers the handler for the given topic.
@@ -33,8 +45,11 @@ func (c *Consumer) Handle(topic string, h handler.Handler) {
 }
 
 func (c *Consumer) setup() {
+	if c.Logger == nil {
+		c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
+	}
 	if c.handlers == nil {
-		c.handlers = &handler.Collection{}
+		c.handlers = &handler.Collection{Logger: c.Logger}
 	}
 
 	if c.quit == nil {
@@ -43,6 +58,12 @@ func (c *Consumer) setup() {
 
 	if c.RetryInterval == 0 {
 		c.RetryInterval = time.Second
+	}
+	if c.newConsumer == nil {
+		c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
+			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
+			return clusterConsumer(cons), err
+		}
 	}
 }
 
@@ -69,7 +90,7 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 
 	consumerGroup := fmt.Sprintf("%s-consumer-group", clientID)
 	var err error
-	c.consumer, err = cluster.NewConsumer(
+	c.consumer, err = c.newConsumer(
 		addrs,
 		consumerGroup,
 		topics,
@@ -88,7 +109,8 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 			// annoying little issue.
 			err = errors.Wrap(err, "__consumer_offsets topic doesn't yet exist, either because no client has yet requested an offset, or because this consumer group is not yet functioning at startup or after rebalancing.")
 		}
-		return errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
+		err = errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
+		return err
 	}
 
 	err = c.handlePartitions(c.consumer.Partitions())
@@ -115,16 +137,20 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 			c.wg.Add(1)
 			go func(pc cluster.PartitionConsumer) {
 				defer c.wg.Done()
-
-				c.handleMessages(pc.Messages(), c.consumer, pc)
+				c.handleMessages(pc.Messages(), c.consumer, pc, pc.Topic(), pc.Partition())
 			}(part)
 		case <-c.quit:
+			c.Logger.Println("partition handler terminating")
 			return nil
+
 		}
 	}
 }
 
-func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker) {
+func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker, topic string, partition int32) {
+	logSuffix := fmt.Sprintf(", topic=%q, partition=%d\n", topic, partition)
+	c.Logger.Println("partition messages - reading" + logSuffix)
+
 	for msg := range ch {
 		var attempts int
 
@@ -151,6 +177,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			select {
 			case <-time.After(c.RetryInterval):
 			case <-c.quit:
+				c.Logger.Println("partition messages - closing" + logSuffix)
 				return
 			}
 		}
@@ -185,3 +212,4 @@ type offsetStash interface {
 type highWaterMarker interface {
 	HighWaterMarkOffset() int64
 }
+
