@@ -84,7 +84,12 @@ func newClusterConfig(clientID string) *cluster.Config {
 	return c
 }
 
-// Serve runs the consumer and listens for new messages on the given topics.
+// Serve runs the consumer and listens for new messages on the given
+// topics.  You must provide it with unique clientID and the address
+// of one or more Kafka brokers.  Serve will block until it is
+// instructed to stop, which you can achieve by calling Consumer.Stop.
+// When Serve terminates it will return an Error or nil to indicate
+// that it excited without error.
 func (c *Consumer) Serve(clientID string, addrs ...string) error {
 	c.setup()
 
