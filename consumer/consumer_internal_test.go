@@ -344,7 +344,7 @@ type testHandler struct {
 
 // HandleMessage will keep a count of how many times it is called and,
 // if a testCase is set on the testHandler, it will run it with the
-// message that HandleMessage recieved, allowing us to make assertions
+// message that HandleMessage received, allowing us to make assertions
 // about the nature of that message.
 func (h *testHandler) HandleMessage(m *message.Message) error {
 	h.CallCount++
