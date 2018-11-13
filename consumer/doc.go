@@ -1,4 +1,4 @@
-// Consumer is felice's primary entrance point for receiving messages
+// Consumer is Felice's primary entrance point for receiving messages
 // from a Kafka cluster.
 //
 // There is no special construction function for the Consumer
@@ -23,19 +23,21 @@
 //    }))
 //
 // Once you've registered all your handlers you may call
-// Consumer.Serve.  Serve will start a go routine for each partition
+// Consumer.Serve. Serve requires a client ID and a slice of strings,
+// each of which is the address of a Kafka broker to attempt to
+// communicate with. Serve will start a go routine for each partition
 // to consume messages and pass them to their per-topic
 // handlers. Serve itself will block until Consumer.Stop is called.
 // When Serve terminates it will return an error, which will be nil
 // under normal circumstances.
-//
+// 
 // Note that any calls to Consumer.Handle after
 // Consumer.Serve has been called will have no effect.
 //
 // Tweaking the consumer
 // --------------------------
 // The first public member is the RetryInterval, a time.Duration that
-// controls how long the felice consumer will wait before trying to
+// controls how long the Felice consumer will wait before trying to
 // consume a message from Kafka that failed the first time around.
 // The default value if 1 second.
 //
