@@ -9,17 +9,23 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Message contains informations about the message to be sent to Kafka.
+// Message represents a message to be sent via Kafka, or received from
+// it. When using Felice's Consumer, any Handlers that you register
+// will receive Messages as they're arguments. When using the Felice
+// Producer, you will be sending Messages. When making a Message to
+// be sent it is essential that you use the New function to do so.
 type Message struct {
-	// Kafka topic.
+	// The Kafka topic this Message applies to.
 	Topic string
 
 	// If specified, messages with the same key will be sent to the same Kafka partition.
 	Key string
 
-	// Body of the Kafka message.
+	// Body of the Kafka message. For now this will always be a
+	// JSON marshaled form of whatever was passed to New.
 	Body []byte
 
+	// The time at which this Message was produced.
 	ProducedAt time.Time
 
 	// Partition where this publication was stored.
@@ -31,11 +37,20 @@ type Message struct {
 	// Headers of the message.
 	Headers map[string]string
 
-	// Unique id of the message.
+	// Unique ID of the message.
 	ID string
 }
 
-// New creates a new configured message.
+// New creates a new Message, correctly configured for use with the
+// felice Producer. You should not attempt to create Message types by
+// hand (unless you really know what you're doing! - I'm just some
+// documentation, not the police).
+//
+// Two headers will be added to all Messages:
+//
+// - Message-Id : a universally unique ID for the message
+// - Produced-At : the current time in the UTC timezone.
+//
 func New(topic string, value interface{}, opts ...Option) (*Message, error) {
 	if topic == "" {
 		return nil, fmt.Errorf("messages require a non-empty topic")
