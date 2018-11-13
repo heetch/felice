@@ -22,7 +22,10 @@ type clusterConsumer interface {
 	Close() error
 }
 
-// Consumer is a Kafka consumer.
+// Consumer is the structure used to consume messages from Kafka.
+// Having constructed a Conusmer you should use its Handle method to
+// register per-topic handlers and, finally, call it's Serve method to
+// begin consuming messages.
 type Consumer struct {
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
