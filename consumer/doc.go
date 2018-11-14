@@ -30,12 +30,11 @@
 // handlers. Serve itself will block until Consumer.Stop is called.
 // When Serve terminates it will return an error, which will be nil
 // under normal circumstances.
-// 
+//
 // Note that any calls to Consumer.Handle after
 // Consumer.Serve has been called will have no effect.
 //
-// Tweaking the consumer
-// --------------------------
+// Tweaking the consumer:
 // The first public member is the RetryInterval, a time.Duration that
 // controls how long the Felice consumer will wait before trying to
 // consume a message from Kafka that failed the first time around.
