@@ -68,7 +68,7 @@ func New(topic string, value interface{}, opts ...Option) (*Message, error) {
 		Topic: topic,
 		Headers: map[string]string{
 			"Message-Id":  id,
-			"Produced-At": time.Now().UTC().String(),
+			"Produced-At": time.Now().UTC().Format(time.RFC3339),
 		},
 	}
 
