@@ -1,4 +1,5 @@
 ![](https://raw.githubusercontent.com/heetch/felice/master/felice.png)
+[![Documentation](https://godoc.org/github.com/heetch/felice?status.svg)](http://godoc.org/github.com/heetch/felice) 
 # Felice
 [![Build Status](https://travis-ci.org/heetch/felice.svg?branch=master)](https://travis-ci.org/heetch/felice)
 ## What is Felice?
