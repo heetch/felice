@@ -4,10 +4,12 @@
 [![Build Status](https://travis-ci.org/heetch/felice.svg?branch=master)](https://travis-ci.org/heetch/felice)
 [![Documentation](https://godoc.org/github.com/heetch/felice?status.svg)](http://godoc.org/github.com/heetch/felice) 
 ## What is Felice?
-Felice is a nascent, opinionated Kafka library for Go, in Go. 
+Felice is a nascent, opinionated Kafka library for Go, in Go.
+
+Currently you can use Felice to send and cosume messages via Kafka topics.  We intend to add more advanced features shortly.
 
 ## Can I use Felice?
-Felice is very much a work in progress.  We expect to move forward quickly, but it's not ready to use in anger yet.
+Felice is very much a work in progress.  As of 06th Demember 2018 Felice's most basic message sending and consuming functions are ready for use, but we are not yet ready to rule out future changes to the public interfaces of the code. proceed with caution.
 
 ## Why "Felice"?
 Felice Bauer was, at one time, Franz Kafka's fiance.  He wrote her many messages, which she faithfuly kept, and later published.
