@@ -13,6 +13,7 @@ import (
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/stretchr/testify/require"
 
+	"github.com/heetch/felice/codec"
 	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
 )
@@ -356,7 +357,7 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	c.Handle("foo", handler.HandlerFunc(func(m *message.Message) error {
 		return nil
 	}))
-	err := c.Serve(NewConfig("some-id"), "foo")
+	err := c.Serve(NewConfig("some-id", codec.String()), "foo")
 	require.Error(t, err)
 }
 
