@@ -9,7 +9,7 @@ type Config struct {
 }
 
 // NewConfig creates a config with sane defaults.
-func NewConfig(clientID string) *Config {
+func NewConfig(clientID string) Config {
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_0_0_0
 	config.ClientID = clientID
@@ -19,5 +19,5 @@ func NewConfig(clientID string) *Config {
 	config.Producer.Return.Successes = true
 	config.Producer.Return.Errors = true
 
-	return &Config{*config}
+	return Config{*config}
 }
