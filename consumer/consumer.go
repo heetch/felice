@@ -28,7 +28,7 @@ type clusterConsumer interface {
 // begin consuming messages.
 type Consumer struct {
 	// Metrics stores a type that implements the felice.MetricsReporter interface.
-	// If you provide an implementation, then it's Report function will be called every time
+	// If you provide an implementation, then its Report function will be called every time
 	// a message is successfully handled.  The Report function will
 	// receive a copy of the message.Message that was handled, along with
 	// a map[string]string containing metrics about the handling of the
