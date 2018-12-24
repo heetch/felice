@@ -44,7 +44,7 @@ func String() Codec {
 			case error:
 				return []byte(t.Error()), nil
 			default:
-				return nil, errors.Errorf("%v must be a string, a stringer, an error or a byte slice, got %t instead", v, v)
+				return nil, errors.Errorf("%v must be a string, a stringer, an error or a byte slice, got %T instead", v, v)
 			}
 		},
 		func(data []byte, target interface{}) error {
@@ -54,7 +54,7 @@ func String() Codec {
 			case *[]byte:
 				*t = data
 			default:
-				return errors.Errorf("%v must be a pointer to string or to a byte slice, got %t instead", target, target)
+				return errors.Errorf("target must be a pointer to string or to a byte slice, got %T instead", target)
 			}
 
 			return nil
@@ -73,7 +73,7 @@ func Int64() Codec {
 		func(v interface{}) ([]byte, error) {
 			i, ok := v.(int64)
 			if !ok {
-				return nil, errors.Errorf("%v must be an int64", v)
+				return nil, errors.Errorf("%v must be an int64, got %T instead", v, v)
 			}
 
 			return []byte(strconv.FormatInt(i, 10)), nil
@@ -81,7 +81,7 @@ func Int64() Codec {
 		func(data []byte, target interface{}) error {
 			ptr, ok := target.(*int64)
 			if !ok {
-				return errors.Errorf("%v must be a pointer to int64", target)
+				return errors.Errorf("target must be a pointer to int64, got %T instead", target)
 			}
 
 			i, err := strconv.ParseInt(string(data), 10, 64)
@@ -101,7 +101,7 @@ func Float64() Codec {
 		func(v interface{}) ([]byte, error) {
 			f, ok := v.(float64)
 			if !ok {
-				return nil, errors.Errorf("%v must be a float64", v)
+				return nil, errors.Errorf("%v must be a float64, got %T instead", v, v)
 			}
 
 			return []byte(strconv.FormatFloat(f, 'f', -1, 64)), nil
@@ -109,7 +109,7 @@ func Float64() Codec {
 		func(data []byte, target interface{}) error {
 			ptr, ok := target.(*float64)
 			if !ok {
-				return errors.Errorf("%v must be a pointer to float64", target)
+				return errors.Errorf("target must be a pointer to float64, got %T instead", target)
 			}
 
 			i, err := strconv.ParseFloat(string(data), 64)
