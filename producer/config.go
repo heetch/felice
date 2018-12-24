@@ -5,6 +5,7 @@ import "github.com/Shopify/sarama"
 // Config is used to configure the Producer.
 type Config struct {
 	sarama.Config
+	// here we will add Felice specific configuration.
 }
 
 // NewConfig creates a config with sane defaults.
