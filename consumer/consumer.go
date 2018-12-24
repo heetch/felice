@@ -27,8 +27,7 @@ type clusterConsumer interface {
 // register per-topic handlers and, finally, call it's Serve method to
 // begin consuming messages.
 type Consumer struct {
-	RetryInterval time.Duration
-	Metrics       MetricsReporter
+	Metrics MetricsReporter
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
 	Logger      *log.Logger
 	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
@@ -59,9 +58,6 @@ func (c *Consumer) setup() {
 		c.quit = make(chan struct{})
 	}
 
-	if c.RetryInterval == 0 {
-		c.RetryInterval = time.Second
-	}
 	if c.newConsumer == nil {
 		c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
@@ -175,7 +171,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			}
 
 			select {
-			case <-time.After(c.RetryInterval):
+			case <-time.After(c.config.RetryInterval):
 			case <-c.quit:
 				c.Logger.Println("partition messages - closing" + logSuffix)
 				return
