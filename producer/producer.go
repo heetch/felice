@@ -11,9 +11,11 @@ import (
 // use our message.Message type.
 type Producer struct {
 	sarama.SyncProducer
+
+	config Config
 }
 
-// New creates a configured Producer.
+// New creates a Producer.
 // This Producer is synchronous, this means that it will wait for all the replicas to
 // acknowledge the message.
 func New(config Config, addrs ...string) (*Producer, error) {
@@ -22,7 +24,13 @@ func New(config Config, addrs ...string) (*Producer, error) {
 		return nil, errors.Wrap(err, "failed to create a producer")
 	}
 
-	return &Producer{SyncProducer: p}, nil
+	return NewFrom(p, config), nil
+}
+
+// NewFrom creates a producer using the given SyncProducer. Useful when
+// wanting to create multiple producers with different configurations but sharing the same underlying connection.
+func NewFrom(producer sarama.SyncProducer, config Config) *Producer {
+	return &Producer{SyncProducer: producer, config: config}
 }
 
 // Send creates and sends a message to Kafka synchronously.
