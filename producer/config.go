@@ -12,7 +12,7 @@ type Config struct {
 	// Codec used to encode the body of the message. Is required.
 	Codec codec.Codec
 
-	// Codec used to decode the message key. Defaults to codec.String.
+	// Codec used to encode the message key. Defaults to codec.String.
 	KeyCodec codec.Codec
 }
 
