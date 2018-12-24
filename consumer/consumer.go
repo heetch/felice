@@ -27,6 +27,16 @@ type clusterConsumer interface {
 // register per-topic handlers and, finally, call it's Serve method to
 // begin consuming messages.
 type Consumer struct {
+	// Metrics stores a type that implements the felice.MetricsReporter interface.
+	// If you provide an implementation, then it's Report function will be called every time
+	// a message is successfully handled.  The Report function will
+	// receive a copy of the message.Message that was handled, along with
+	// a map[string]string containing metrics about the handling of the
+	// message.  Currently we pass the following metrics: "attempts" (the
+	// number of attempts it took before the message was handled);
+	// "msgOffset" (the marked offset for the message on the topic); and
+	// "remainingOffset" (the difference between the high water mark and
+	// the current offset).
 	Metrics MetricsReporter
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
 	Logger      *log.Logger
@@ -78,7 +88,7 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 	c.config = &config
 	// Always make sure we are using the right group mode: One chan per partition instead of default multiplexing behaviour.
 	if c.config.Group.Mode != cluster.ConsumerModePartitions {
-		c.Logger.Println("Warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
+		c.Logger.Println("warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
 		c.config.Group.Mode = cluster.ConsumerModePartitions
 	}
 
