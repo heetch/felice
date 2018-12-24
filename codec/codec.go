@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -58,4 +59,9 @@ func String() Codec {
 			return nil
 		},
 	}
+}
+
+// JSON Codec handles JSON encoding.
+func JSON() Codec {
+	return &codecFunc{json.Marshal, json.Unmarshal}
 }
