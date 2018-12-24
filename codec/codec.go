@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -64,4 +65,32 @@ func String() Codec {
 // JSON Codec handles JSON encoding.
 func JSON() Codec {
 	return &codecFunc{json.Marshal, json.Unmarshal}
+}
+
+// Int64 Codec handles int64 encoding.
+func Int64() Codec {
+	return &codecFunc{
+		func(v interface{}) ([]byte, error) {
+			i, ok := v.(int64)
+			if !ok {
+				return nil, errors.Errorf("%v must be an int64", v)
+			}
+
+			return []byte(strconv.FormatInt(i, 10)), nil
+		},
+		func(data []byte, target interface{}) error {
+			ptr, ok := target.(*int64)
+			if !ok {
+				return errors.Errorf("%v must be a pointer to int64", target)
+			}
+
+			i, err := strconv.ParseInt(string(data), 10, 64)
+			if err != nil {
+				return err
+			}
+
+			*ptr = i
+			return nil
+		},
+	}
 }
