@@ -30,13 +30,13 @@ type Consumer struct {
 	RetryInterval time.Duration
 	Metrics       MetricsReporter
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
-	Logger        *log.Logger	
-	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
-	consumer      clusterConsumer
-	config        *cluster.Config
-	handlers      *handler.Collection
-	wg            sync.WaitGroup
-	quit          chan struct{}
+	Logger      *log.Logger
+	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
+	consumer    clusterConsumer
+	config      *Config
+	handlers    *handler.Collection
+	wg          sync.WaitGroup
+	quit        chan struct{}
 }
 
 // Handle registers the handler for the given topic.
@@ -70,39 +70,31 @@ func (c *Consumer) setup() {
 	}
 }
 
-func newClusterConfig(clientID string) *cluster.Config {
-	c := cluster.NewConfig()
-	c.ClientID = clientID
-	c.Consumer.Return.Errors = true
-	// Specify that we are using at least Kafka v1.0
-	c.Version = sarama.V1_0_0_0
-	// Distribute load across instances using round robin strategy
-	c.Group.PartitionStrategy = cluster.StrategyRoundRobin
-	// One chan per partition instead of default multiplexing behaviour.
-	c.Group.Mode = cluster.ConsumerModePartitions
-
-	return c
-}
-
 // Serve runs the consumer and listens for new messages on the given
 // topics.  You must provide it with unique clientID and the address
 // of one or more Kafka brokers.  Serve will block until it is
 // instructed to stop, which you can achieve by calling Consumer.Stop.
 // When Serve terminates it will return an Error or nil to indicate
 // that it excited without error.
-func (c *Consumer) Serve(clientID string, addrs ...string) error {
+func (c *Consumer) Serve(config Config, addrs ...string) error {
 	c.setup()
 
-	c.config = newClusterConfig(clientID)
+	c.config = &config
+	// Always make sure we are using the right group mode: One chan per partition instead of default multiplexing behaviour.
+	if c.config.Group.Mode != cluster.ConsumerModePartitions {
+		c.Logger.Println("Warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
+		c.config.Group.Mode = cluster.ConsumerModePartitions
+	}
+
 	topics := c.handlers.Topics()
 
-	consumerGroup := fmt.Sprintf("%s-consumer-group", clientID)
+	consumerGroup := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
 	var err error
 	c.consumer, err = c.newConsumer(
 		addrs,
 		consumerGroup,
 		topics,
-		c.config)
+		&c.config.Config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
@@ -220,4 +212,3 @@ type offsetStash interface {
 type highWaterMarker interface {
 	HighWaterMarkOffset() int64
 }
-
