@@ -94,3 +94,31 @@ func Int64() Codec {
 		},
 	}
 }
+
+// Float64 Codec handles float64 encoding.
+func Float64() Codec {
+	return &codecFunc{
+		func(v interface{}) ([]byte, error) {
+			f, ok := v.(float64)
+			if !ok {
+				return nil, errors.Errorf("%v must be a float64", v)
+			}
+
+			return []byte(strconv.FormatFloat(f, 'f', -1, 64)), nil
+		},
+		func(data []byte, target interface{}) error {
+			ptr, ok := target.(*float64)
+			if !ok {
+				return errors.Errorf("%v must be a pointer to float64", target)
+			}
+
+			i, err := strconv.ParseFloat(string(data), 64)
+			if err != nil {
+				return err
+			}
+
+			*ptr = i
+			return nil
+		},
+	}
+}
