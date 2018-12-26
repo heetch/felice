@@ -10,8 +10,8 @@ import (
 
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
+	"github.com/heetch/felice/codec"
 	"github.com/heetch/felice/consumer/handler"
-	"github.com/heetch/felice/message"
 	"github.com/pkg/errors"
 )
 
@@ -23,14 +23,14 @@ type clusterConsumer interface {
 }
 
 // Consumer is the structure used to consume messages from Kafka.
-// Having constructed a Conusmer you should use its Handle method to
+// Having constructed a Consumer you should use its Handle method to
 // register per-topic handlers and, finally, call it's Serve method to
 // begin consuming messages.
 type Consumer struct {
 	// Metrics stores a type that implements the felice.MetricsReporter interface.
 	// If you provide an implementation, then its Report function will be called every time
 	// a message is successfully handled.  The Report function will
-	// receive a copy of the message.Message that was handled, along with
+	// receive a copy of the message that was handled, along with
 	// a map[string]string containing metrics about the handling of the
 	// message.  Currently we pass the following metrics: "attempts" (the
 	// number of attempts it took before the message was handled);
@@ -198,8 +198,8 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 	}
 }
 
-func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *message.Message {
-	var msg message.Message
+func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *Message {
+	var msg Message
 	if cm.Key != nil {
 		msg.Key = string(cm.Key)
 	}
@@ -208,7 +208,7 @@ func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *message.Message {
 	msg.ProducedAt = cm.Timestamp
 	msg.Offset = cm.Offset
 	msg.Partition = cm.Partition
-	msg.Body = cm.Value
+	// msg.Body = cm.Value
 
 	return &msg
 }
@@ -216,7 +216,7 @@ func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *message.Message {
 // MetricsReporter is a interface that can be passed to set metrics hook to receive metrics
 // from the consumer as it handles messages.
 type MetricsReporter interface {
-	Report(message.Message, map[string]string)
+	Report(Message, map[string]string)
 }
 
 type offsetStash interface {
@@ -225,4 +225,54 @@ type offsetStash interface {
 
 type highWaterMarker interface {
 	HighWaterMarkOffset() int64
+}
+
+// Message represents a message received from Kafka.
+// When using Felice's Consumer, any Handlers that you register
+// will receive Messages as they're arguments.
+type Message struct {
+	// The Kafka topic this Message applies to.
+	Topic string
+
+	// Key on which this message was sent to.
+	Key string
+
+	// Body of the Kafka message. For now this will always be a
+	// JSON marshaled form of whatever was passed to New.
+	Body Body
+
+	// The time at which this Message was produced.
+	ProducedAt time.Time
+
+	// Partition where this publication was stored.
+	Partition int32
+
+	// Offset where this publication was stored.
+	Offset int64
+
+	// Headers of the message.
+	Headers map[string]string
+
+	// Unique ID of the message.
+	ID string
+}
+
+// A Body is the encoded body of the message. It can be decoded
+// to an arbitrary value using the Decode method.
+type Body interface {
+	Decode(interface{}) error
+	Bytes() []byte
+}
+
+type body struct {
+	data  []byte
+	codec codec.Codec
+}
+
+func (b *body) Decode(to interface{}) error {
+	return b.codec.Decode(b.data, to)
+}
+
+func (b *body) Bytes() []byte {
+	return b.data
 }
