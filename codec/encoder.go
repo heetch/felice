@@ -23,7 +23,6 @@ func JSONEncoder(v interface{}) sarama.Encoder {
 type encoder struct {
 	codec Codec
 	v     interface{}
-	len   int
 	cache []byte
 	err   error
 }
@@ -33,7 +32,11 @@ type encoder struct {
 // length of the output. If there's an error, it must postpone the error reporting
 // to when Sarama calls the Encode method.
 func (e *encoder) Length() int {
-	e.cache, e.err = e.Encode()
+	if e.cache != nil {
+		return len(e.cache)
+	}
+
+	e.Encode()
 	return len(e.cache)
 }
 
@@ -48,5 +51,6 @@ func (e *encoder) Encode() ([]byte, error) {
 		return e.cache, nil
 	}
 
-	return e.codec.Encode(e.v)
+	e.cache, e.err = e.codec.Encode(e.v)
+	return e.cache, e.err
 }
