@@ -5,17 +5,18 @@ import (
 	"testing"
 
 	"github.com/Shopify/sarama/mocks"
-	"github.com/heetch/felice/message"
 	"github.com/heetch/felice/producer"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSendMessage(t *testing.T) {
-	msp := mocks.NewSyncProducer(t, nil)
-	p := producer.Producer{SyncProducer: msp}
+	cfg := producer.NewConfig("id", producer.MessageFormatterV1())
+	msp := mocks.NewSyncProducer(t, &cfg.Config)
 
-	msg, err := message.New("topic", "message")
+	p, err := producer.NewFrom(msp, cfg)
 	require.NoError(t, err)
+
+	msg := producer.NewMessage("topic", "message")
 
 	msp.ExpectSendMessageWithCheckerFunctionAndSucceed(func(val []byte) error {
 		exp := "\"message\""
@@ -29,18 +30,5 @@ func TestSendMessage(t *testing.T) {
 
 	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
 	err = p.SendMessage(msg)
-	require.EqualError(t, err, "failed to send message: cannot produce message")
-}
-
-func TestSend(t *testing.T) {
-	msp := mocks.NewSyncProducer(t, nil)
-	p := producer.Producer{SyncProducer: msp}
-
-	msp.ExpectSendMessageAndSucceed()
-	_, err := p.Send("topic", "message")
-	require.NoError(t, err)
-
-	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
-	_, err = p.Send("topic", "message")
 	require.EqualError(t, err, "failed to send message: cannot produce message")
 }

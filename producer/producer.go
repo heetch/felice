@@ -6,10 +6,11 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/heetch/felice/codec"
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 )
 
 // Producer sends messages to Kafka.
-// It embeds the sarama.SyncProducer type and shadows the Send method to
+// It embeds the sarama.SyncProducer type and adds a Send method to
 // use Felice Message type.
 type Producer struct {
 	sarama.SyncProducer
@@ -53,8 +54,8 @@ func NewFrom(producer sarama.SyncProducer, config Config) (*Producer, error) {
 	return &Producer{SyncProducer: producer, config: config}, nil
 }
 
-// Send sends the given message to Kafka synchronously.
-func (p *Producer) Send(msg *Message) error {
+// SendMessage sends the given message to Kafka synchronously.
+func (p *Producer) SendMessage(msg *Message) error {
 	if p.config.Formatter == nil {
 		return errors.New("producer: missing Formatter in config")
 	}
@@ -97,6 +98,16 @@ type Message struct {
 
 	// Unique ID of the message.
 	ID string
+}
+
+// NewMessage creates a configured message with a generated unique ID.
+func NewMessage(topic string, body interface{}) *Message {
+	return &Message{
+		Topic:   topic,
+		Body:    body,
+		Headers: make(map[string]string),
+		ID:      uuid.Must(uuid.NewV4()).String(),
+	}
 }
 
 // A MessageFormatter transforms a Message into a sarama.ProducerMessage.
