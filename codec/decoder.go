@@ -39,6 +39,14 @@ func JSONDecoder(data []byte) Decoder {
 	}
 }
 
+// NewDecoder creates a decoder using the given codec.
+func NewDecoder(codec Codec, data []byte) Decoder {
+	return &decoder{
+		data:  data,
+		codec: codec,
+	}
+}
+
 type decoder struct {
 	data  []byte
 	codec Codec

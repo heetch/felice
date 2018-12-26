@@ -175,7 +175,8 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			// Note: The second returned value is not checked because we will never receive messages for a topic
 			// that it does not have a handler for.
 			h, _ := c.handlers.Get(msg.Topic)
-			err := h.(handler.Handler).HandleMessage(m)
+			// err := h.(handler.Handler).HandleMessage(m)
+			var err error
 			if err == nil {
 				offset.MarkOffset(msg, "")
 				if c.Metrics != nil {
@@ -235,11 +236,10 @@ type Message struct {
 	Topic string
 
 	// Key on which this message was sent to.
-	Key string
+	Key codec.Decoder
 
-	// Body of the Kafka message. For now this will always be a
-	// JSON marshaled form of whatever was passed to New.
-	Body Body
+	// Body of the Kafka message.
+	Body codec.Decoder
 
 	// The time at which this Message was produced.
 	ProducedAt time.Time
@@ -257,22 +257,48 @@ type Message struct {
 	ID string
 }
 
-// A Body is the encoded body of the message. It can be decoded
-// to an arbitrary value using the Decode method.
-type Body interface {
-	Decode(interface{}) error
-	Bytes() []byte
+// A MessageUnformatter transforms a sarama.ProducerMessage into a Message.
+// The role of the unformatter is to decouple the conventions defined by users from
+// the consumer.
+// Each unformatter defines the way it wants to decode metadata, headers and body from the message received from Kafka
+// and returns a format agnostic Message structure.
+type MessageUnformatter interface {
+	Unformat(Config, *sarama.ConsumerMessage) (*Message, error)
 }
 
-type body struct {
-	data  []byte
-	codec codec.Codec
+// MessageUnformatterV1 is the first version of the default unformatter.
+// It unformats messages formatted using the producer.MessageFormatterv1.
+// The headers are extracted from Kafka headers and the body is decoded from JSON.
+// If the Message-Id and Produced-At headers are found, they will automatically be added to
+// the ID and ProducedAt fields.
+func MessageUnformatterV1() MessageUnformatter {
+	return new(messageUnformatterV1)
 }
 
-func (b *body) Decode(to interface{}) error {
-	return b.codec.Decode(b.data, to)
-}
+type messageUnformatterV1 struct{}
 
-func (b *body) Bytes() []byte {
-	return b.data
+// Unformat the message from Kafka headers and JSON body.
+func (f *messageUnformatterV1) Unformat(config Config, cm *sarama.ConsumerMessage) (*Message, error) {
+	msg := Message{
+		Topic:     cm.Topic,
+		Headers:   make(map[string]string),
+		Key:       codec.NewDecoder(config.KeyCodec, cm.Key),
+		Body:      codec.JSONDecoder(cm.Value),
+		Partition: cm.Partition,
+		Offset:    cm.Offset,
+	}
+
+	for _, pair := range cm.Headers {
+		msg.Headers[string(pair.Key)] = string(pair.Value)
+	}
+
+	msg.ID = msg.Headers["Message-Id"]
+
+	if msg.Headers["Produced-At"] != "" {
+		// if the Produced-At timestamp is malformed, we simply skip it.
+		// the user can check if the field is empty or not.
+		msg.ProducedAt, _ = time.Parse(time.RFC3339, msg.Headers["Produced-At"])
+	}
+
+	return &msg, nil
 }
