@@ -113,10 +113,14 @@ type MessageFormatter interface {
 // The headers are sent using Kafka headers and the body is encoded into JSON.
 // A Message-Id and Produced-At headers are automatically added containing respectively
 // the message ID it not empty and the current time in UTC format.
-type MessageFormatterV1 struct{}
+func MessageFormatterV1() MessageFormatter {
+	return new(messageFormatterV1)
+}
+
+type messageFormatterV1 struct{}
 
 // Format the message using Kafka headers and JSON body.
-func (f *MessageFormatterV1) Format(msg *Message) (*sarama.ProducerMessage, error) {
+func (f *messageFormatterV1) Format(msg *Message) (*sarama.ProducerMessage, error) {
 	// if the Message-Id key is not already filled, override it with the msg.ID
 	if _, ok := msg.Headers["Message-Id"]; !ok && msg.ID != "" {
 		msg.Headers["Message-Id"] = msg.ID

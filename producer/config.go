@@ -2,26 +2,18 @@ package producer
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/heetch/felice/codec"
 )
 
 // Config is used to configure the Producer.
 type Config struct {
 	sarama.Config
 
-	// Codec used to encode the body of the message. Is required.
-	Codec codec.Codec
-
-	// Codec used to encode the message key. Defaults to codec.String.
-	KeyCodec codec.Codec
-
 	// Formatter used to translate Felice messages to Sarama ones.
 	Formatter MessageFormatter
 }
 
-// NewConfig creates a config with sane defaults. Parameter clientID is directly copied set in Sarama.Config.ClientID
-// and the defaultCodec will be used to encode every message with no specified codec.
-func NewConfig(clientID string, defaultCodec codec.Codec) Config {
+// NewConfig creates a config with sane defaults. Parameter clientID is directly copied set in Sarama.Config.ClientID.
+func NewConfig(clientID string, formatter MessageFormatter) Config {
 	var c Config
 
 	// Sarama configuration
@@ -34,8 +26,6 @@ func NewConfig(clientID string, defaultCodec codec.Codec) Config {
 	c.Config.Producer.Return.Successes = true
 	c.Config.Producer.Return.Errors = true
 
-	// Felice configuration
-	c.Codec = defaultCodec
-	c.KeyCodec = codec.String() // defaults to String
+	c.Formatter = formatter
 	return c
 }
