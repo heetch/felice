@@ -14,6 +14,9 @@ type Config struct {
 
 	// Codec used to encode the message key. Defaults to codec.String.
 	KeyCodec codec.Codec
+
+	// Formatter used to translate Felice messages to Sarama ones.
+	Formatter MessageFormatter
 }
 
 // NewConfig creates a config with sane defaults. Parameter clientID is directly copied set in Sarama.Config.ClientID

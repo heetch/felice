@@ -32,5 +32,4 @@ func TestEncoder(t *testing.T) {
 		_, err := enc.Encode()
 		require.Error(t, err)
 	})
-
 }
