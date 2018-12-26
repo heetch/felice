@@ -4,13 +4,13 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// IntEncoder creates a sarama.Encoder that encodes using the Int64 codec.
-func IntEncoder(v int) sarama.Encoder {
+// Int64Encoder creates a sarama.Encoder that encodes using the Int64 codec.
+func Int64Encoder(v int) sarama.Encoder {
 	return &encoder{codec: Int64(), v: int64(v)}
 }
 
-// FloatEncoder creates a sarama.Encoder that encodes using the Float64 Codec.
-func FloatEncoder(v float64) sarama.Encoder {
+// Float64Encoder creates a sarama.Encoder that encodes using the Float64 Codec.
+func Float64Encoder(v float64) sarama.Encoder {
 	return &encoder{codec: Float64(), v: v}
 }
 

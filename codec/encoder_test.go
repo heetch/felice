@@ -9,7 +9,7 @@ import (
 func TestEncoder(t *testing.T) {
 	// checks whether the encoder is working properly when calling Length first
 	t.Run("Length first", func(t *testing.T) {
-		enc := IntEncoder(10)
+		enc := Int64Encoder(10)
 		require.Equal(t, 2, enc.Length())
 		d, err := enc.Encode()
 		require.NoError(t, err)
@@ -18,7 +18,7 @@ func TestEncoder(t *testing.T) {
 
 	// checks whether the encoder is working properly when calling Encode first
 	t.Run("Encode first", func(t *testing.T) {
-		enc := FloatEncoder(10.5)
+		enc := Float64Encoder(10.5)
 		d, err := enc.Encode()
 		require.NoError(t, err)
 		require.EqualValues(t, "10.5", d)
