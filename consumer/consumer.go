@@ -11,7 +11,6 @@ import (
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/heetch/felice/codec"
-	"github.com/heetch/felice/consumer/handler"
 	"github.com/pkg/errors"
 )
 
@@ -43,14 +42,14 @@ type Consumer struct {
 	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 	consumer    clusterConsumer
 	config      *Config
-	handlers    *handler.Collection
+	handlers    *Collection
 	wg          sync.WaitGroup
 	quit        chan struct{}
 }
 
 // Handle registers the handler for the given topic.
 // Handle must be called before Serve.
-func (c *Consumer) Handle(topic string, h handler.Handler) {
+func (c *Consumer) Handle(topic string, h Handler) {
 	c.setup()
 
 	c.handlers.Set(topic, h)
@@ -61,7 +60,7 @@ func (c *Consumer) setup() {
 		c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
 	}
 	if c.handlers == nil {
-		c.handlers = &handler.Collection{Logger: c.Logger}
+		c.handlers = &Collection{Logger: c.Logger}
 	}
 
 	if c.quit == nil {
@@ -175,8 +174,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			// Note: The second returned value is not checked because we will never receive messages for a topic
 			// that it does not have a handler for.
 			h, _ := c.handlers.Get(msg.Topic)
-			// err := h.(handler.Handler).HandleMessage(m)
-			var err error
+			err := h.(Handler).HandleMessage(m)
 			if err == nil {
 				offset.MarkOffset(msg, "")
 				if c.Metrics != nil {

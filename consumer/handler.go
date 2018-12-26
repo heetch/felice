@@ -1,9 +1,40 @@
-package handler
+package consumer
 
 import (
 	"log"
 	"sync"
 )
+
+// Handler is the interface for handling consumed messages. You can
+// either add a compliant HandleMessage function to some type by hand,
+// or make use of the HandlerFunc. Note that felice Handlers receive
+// felice Message types.
+type Handler interface {
+	// HandleMessage functions will receive a *Message
+	// type, and may do with it what they wish.  However, some
+	// caution should be used when returning an error from a
+	// HandleMessage function.  Errors are considered an
+	// indication that the message has not been handled.  After
+	// waiting a respectable amount of time, the HandleMessage
+	// function will be called again with the same message.  This
+	// will continue until on of the following conditions is met:
+	//
+	// - 1. HandleMessage returns nil, instead of an error.
+	// - 2. A system administrator intervenes.
+	// - 3. The Earth is consumed by the sun.
+	HandleMessage(*Message) error
+}
+
+// A HandlerFunc is a function that supports the Handler interface.
+// Calls to Handler.HandleMessage made against any function cast to
+// this type will result in the function itself being called.
+type HandlerFunc func(*Message) error
+
+// HandleMessage implements the Handler interface by calling the
+// HandlerFunc to which it is associated.
+func (h HandlerFunc) HandleMessage(msg *Message) error {
+	return h(msg)
+}
 
 // A Collection is set of Handler types, keyed by topic. Only one
 // handler may exists in a Collection per topic, but any number of

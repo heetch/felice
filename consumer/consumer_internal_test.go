@@ -11,11 +11,9 @@ import (
 	"github.com/Shopify/sarama"
 
 	cluster "github.com/bsm/sarama-cluster"
-	"github.com/stretchr/testify/require"
-
 	"github.com/heetch/felice/codec"
-	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -318,7 +316,7 @@ func (mmh *metricsHook) Report(msg message.Message, metadatas map[string]string)
 	mmh.t.Run(mmh.testCase(msg, metadatas))
 }
 
-// testHandler implements the handler.Handler interface for testing
+// testHandler implements the Handler interface for testing
 // purposes. It can be used to make assertions about the message
 // passed to HandleMessage.
 type testHandler struct {
@@ -354,7 +352,7 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work!")
 	}
-	c.Handle("foo", handler.HandlerFunc(func(m *message.Message) error {
+	c.Handle("foo", HandlerFunc(func(m *message.Message) error {
 		return nil
 	}))
 	err := c.Serve(NewConfig("some-id", codec.String()), "foo")

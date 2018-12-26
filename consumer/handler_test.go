@@ -1,13 +1,27 @@
-package handler_test
+package consumer_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/heetch/felice/consumer/handler"
 	"github.com/heetch/felice/message"
 	"github.com/stretchr/testify/require"
 )
+
+// HandleMessageFn can be used as a Handler
+func TestHandleMessageFn(t *testing.T) {
+	var calls []bool
+
+	var h Handler
+	h = HandlerFunc(func(msg *message.Message) error {
+		calls = append(calls, true)
+		return nil
+	})
+	m := &message.Message{}
+	err := h.HandleMessage(m)
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+}
 
 type testHandler struct {
 	ID int
@@ -26,9 +40,9 @@ func TestCollectionGetSet(t *testing.T) {
 
 	testCases := []struct {
 		Name            string
-		Handlers        []map[string]handler.Handler
+		Handlers        []map[string]Handler
 		TestTopic       string
-		ExpectedHandler handler.Handler
+		ExpectedHandler Handler
 		ExpectedOK      bool
 	}{
 		{
@@ -40,14 +54,14 @@ func TestCollectionGetSet(t *testing.T) {
 		},
 		{
 			Name:            "Set and Get the same Topic's handler",
-			Handlers:        []map[string]handler.Handler{{"Shoe": th1}},
+			Handlers:        []map[string]Handler{{"Shoe": th1}},
 			TestTopic:       "Shoe",
 			ExpectedHandler: th1,
 			ExpectedOK:      true,
 		},
 		{
 			Name: "Overwite topic association",
-			Handlers: []map[string]handler.Handler{
+			Handlers: []map[string]Handler{
 				{"Shoe": th1},
 				// The association with th2 should
 				// overwrite the association with th1.
