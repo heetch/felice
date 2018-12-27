@@ -4,6 +4,11 @@ import (
 	"github.com/Shopify/sarama"
 )
 
+// StringEncoder creates a sarama.Encoder that encodes using the String codec.
+func StringEncoder(v string) sarama.Encoder {
+	return &encoder{codec: String(), v: v}
+}
+
 // Int64Encoder creates a sarama.Encoder that encodes using the Int64 codec.
 func Int64Encoder(v int) sarama.Encoder {
 	return &encoder{codec: Int64(), v: int64(v)}

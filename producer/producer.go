@@ -10,8 +10,8 @@ import (
 )
 
 // Producer sends messages to Kafka.
-// It embeds the sarama.SyncProducer type and adds a Send method to
-// use Felice Message type.
+// It embeds the sarama.SyncProducer type and shadows the SendMessage method to
+// use the Message type.
 type Producer struct {
 	sarama.SyncProducer
 
