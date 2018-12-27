@@ -29,7 +29,7 @@ func Example() {
 
 type customConverter struct{}
 
-func (customConverter) ToKafka(*producer.Message) (*sarama.ProducerMessage, error) {
+func (customConverter) ToKafka(producer.Config, *producer.Message) (*sarama.ProducerMessage, error) {
 	return nil, nil
 }
 
