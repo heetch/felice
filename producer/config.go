@@ -8,12 +8,12 @@ import (
 type Config struct {
 	sarama.Config
 
-	// Formatter used to translate Felice messages to Sarama ones.
-	Formatter MessageFormatter
+	// Converter used to translate Felice messages to Sarama ones.
+	Converter MessageConverter
 }
 
 // NewConfig creates a config with sane defaults. Parameter clientID is directly copied set in Sarama.Config.ClientID.
-func NewConfig(clientID string, formatter MessageFormatter) Config {
+func NewConfig(clientID string, formatter MessageConverter) Config {
 	var c Config
 
 	// Sarama configuration
@@ -26,6 +26,6 @@ func NewConfig(clientID string, formatter MessageFormatter) Config {
 	c.Config.Producer.Return.Successes = true
 	c.Config.Producer.Return.Errors = true
 
-	c.Formatter = formatter
+	c.Converter = formatter
 	return c
 }

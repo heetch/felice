@@ -10,7 +10,7 @@ import (
 )
 
 func TestSendMessage(t *testing.T) {
-	cfg := producer.NewConfig("id", producer.MessageFormatterV1())
+	cfg := producer.NewConfig("id", producer.MessageConverterV1())
 	msp := mocks.NewSyncProducer(t, &cfg.Config)
 
 	p, err := producer.NewFrom(msp, cfg)

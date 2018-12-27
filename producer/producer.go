@@ -36,8 +36,8 @@ func New(config Config, addrs ...string) (*Producer, error) {
 }
 
 func verifyConfig(cfg *Config) error {
-	if cfg.Formatter == nil {
-		return errors.New("producer: missing Formatter in config")
+	if cfg.Converter == nil {
+		return errors.New("producer: missing Converter in config")
 	}
 
 	return nil
@@ -56,11 +56,11 @@ func NewFrom(producer sarama.SyncProducer, config Config) (*Producer, error) {
 
 // SendMessage sends the given message to Kafka synchronously.
 func (p *Producer) SendMessage(msg *Message) error {
-	if p.config.Formatter == nil {
-		return errors.New("producer: missing Formatter in config")
+	if p.config.Converter == nil {
+		return errors.New("producer: missing Converter in config")
 	}
 
-	pmsg, err := p.config.Formatter.Format(msg)
+	pmsg, err := p.config.Converter.Convert(msg)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (p *Producer) SendMessage(msg *Message) error {
 
 // Message represents a message to be sent via Kafka.
 // Before sending it, the producer will transform this structure into a
-// sarama.ProducerMessage using the registered Formatter.
+// sarama.ProducerMessage using the registered Converter.
 type Message struct {
 	// The Kafka topic this Message applies to.
 	Topic string
@@ -110,28 +110,28 @@ func NewMessage(topic string, body interface{}) *Message {
 	}
 }
 
-// A MessageFormatter transforms a Message into a sarama.ProducerMessage.
-// The role of the formatter is to decouple the conventions defined by users from
+// A MessageConverter transforms a Message into a sarama.ProducerMessage.
+// The role of the converter is to decouple the conventions defined by users from
 // the producer.
-// Each formatter defines a set of convention regarding how the message is
-// formatted in Kafka. A formatter can add metadata, use an enveloppe to store every information
+// Each converter defines a set of convention regarding how the message is
+// formatted in Kafka. A converter can add metadata, use an enveloppe to store every information
 // in the body or even use Kafka headers.
-type MessageFormatter interface {
-	Format(*Message) (*sarama.ProducerMessage, error)
+type MessageConverter interface {
+	Convert(*Message) (*sarama.ProducerMessage, error)
 }
 
-// MessageFormatterV1 is the first version of the default formatter.
+// MessageConverterV1 is the first version of the default converter.
 // The headers are sent using Kafka headers and the body is encoded into JSON.
 // A Message-Id and Produced-At headers are automatically added containing respectively
 // the message ID it not empty and the current time in UTC format.
-func MessageFormatterV1() MessageFormatter {
-	return new(messageFormatterV1)
+func MessageConverterV1() MessageConverter {
+	return new(messageConverterV1)
 }
 
-type messageFormatterV1 struct{}
+type messageConverterV1 struct{}
 
 // Format the message using Kafka headers and JSON body.
-func (f *messageFormatterV1) Format(msg *Message) (*sarama.ProducerMessage, error) {
+func (f *messageConverterV1) Convert(msg *Message) (*sarama.ProducerMessage, error) {
 	// if the Message-Id key is not already filled, override it with the msg.ID
 	if _, ok := msg.Headers["Message-Id"]; !ok && msg.ID != "" {
 		msg.Headers["Message-Id"] = msg.ID
