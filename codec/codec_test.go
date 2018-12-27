@@ -36,6 +36,7 @@ func TestEncoding(t *testing.T) {
 	}
 }
 
+// checks if correct error messages are returned when trying to encode incompatible values.
 func TestEncodingErrors(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -82,6 +83,7 @@ func TestDecoding(t *testing.T) {
 	}
 }
 
+// checks if correct error messages are returned when trying to encode incompatible values.
 func TestDecodingErrors(t *testing.T) {
 	tests := []struct {
 		name      string
