@@ -42,7 +42,7 @@ type Consumer struct {
 	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 	consumer    clusterConsumer
 	config      *Config
-	handlers    collection
+	handlers    *collection
 	wg          sync.WaitGroup
 	quit        chan struct{}
 }
@@ -63,6 +63,10 @@ func (c *Consumer) Handle(topic string, unformatter MessageUnformatter, h Handle
 func (c *Consumer) setup() {
 	if c.Logger == nil {
 		c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
+	}
+
+	if c.handlers == nil {
+		c.handlers = new(collection)
 	}
 
 	if c.quit == nil {
@@ -273,12 +277,13 @@ type messageUnformatterV1 struct{}
 // Unformat the message from Kafka headers and JSON body.
 func (f *messageUnformatterV1) Unformat(config Config, cm *sarama.ConsumerMessage) (*Message, error) {
 	msg := Message{
-		Topic:     cm.Topic,
-		Headers:   make(map[string]string),
-		Key:       codec.NewDecoder(config.KeyCodec, cm.Key),
-		Body:      codec.JSONDecoder(cm.Value),
-		Partition: cm.Partition,
-		Offset:    cm.Offset,
+		Topic:      cm.Topic,
+		Headers:    make(map[string]string),
+		Key:        codec.NewDecoder(config.KeyCodec, cm.Key),
+		Body:       codec.JSONDecoder(cm.Value),
+		Partition:  cm.Partition,
+		Offset:     cm.Offset,
+		ProducedAt: cm.Timestamp,
 	}
 
 	for _, pair := range cm.Headers {
@@ -286,12 +291,6 @@ func (f *messageUnformatterV1) Unformat(config Config, cm *sarama.ConsumerMessag
 	}
 
 	msg.ID = msg.Headers["Message-Id"]
-
-	if msg.Headers["Produced-At"] != "" {
-		// if the Produced-At timestamp is malformed, we simply skip it.
-		// the user can check if the field is empty or not.
-		msg.ProducedAt, _ = time.Parse(time.RFC3339, msg.Headers["Produced-At"])
-	}
 
 	return &msg, nil
 }

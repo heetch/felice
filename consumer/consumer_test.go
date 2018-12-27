@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	"github.com/heetch/felice/consumer"
-	"github.com/heetch/felice/message"
 )
 
 // Consumer.Handle emits log messages
 func TestHandleLogs(t *testing.T) {
 	tl := consumer.NewTestLogger(t)
 	c := &consumer.Consumer{Logger: tl.Logger}
-	c.Handle("foo", HandlerFunc(func(m *message.Message) error {
+	c.Handle("foo", consumer.MessageUnformatterV1(), consumer.HandlerFunc(func(m *consumer.Message) error {
 		return nil
 	}))
 	tl.LogLineMatches(`Registered handler. topic="foo"`)
