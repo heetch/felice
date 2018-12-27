@@ -60,7 +60,7 @@ func (p *Producer) SendMessage(msg *Message) error {
 		return errors.New("producer: missing Converter in config")
 	}
 
-	pmsg, err := p.config.Converter.Convert(msg)
+	pmsg, err := p.config.Converter.ToKafka(msg)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func NewMessage(topic string, body interface{}) *Message {
 // formatted in Kafka. A converter can add metadata, use an enveloppe to store every information
 // in the body or even use Kafka headers.
 type MessageConverter interface {
-	Convert(*Message) (*sarama.ProducerMessage, error)
+	ToKafka(*Message) (*sarama.ProducerMessage, error)
 }
 
 // MessageConverterV1 is the first version of the default converter.
@@ -130,8 +130,8 @@ func MessageConverterV1() MessageConverter {
 
 type messageConverterV1 struct{}
 
-// Format the message using Kafka headers and JSON body.
-func (f *messageConverterV1) Convert(msg *Message) (*sarama.ProducerMessage, error) {
+// ToKafka converts the message to Sarama ProducerMessage using Kafka headers and JSON body.
+func (f *messageConverterV1) ToKafka(msg *Message) (*sarama.ProducerMessage, error) {
 	// if the Message-Id key is not already filled, override it with the msg.ID
 	if _, ok := msg.Headers["Message-Id"]; !ok && msg.ID != "" {
 		msg.Headers["Message-Id"] = msg.ID
