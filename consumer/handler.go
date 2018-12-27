@@ -35,14 +35,14 @@ func (h HandlerFunc) HandleMessage(msg *Message) error {
 	return h(msg)
 }
 
-// A Collection is set of HandlerConfig types, keyed by topic. Only one
-// handler config may exists in a Collection per topic, but any number of
-// topics may be contained in the Collection. The handler config for a topic
+// A collection is set of HandlerConfig types, keyed by topic. Only one
+// handler config may exists in a collection per topic, but any number of
+// topics may be contained in the collection. The handler config for a topic
 // can be added via Set, and retrieved via Get. It is not currently
 // possible to remove a topic. Additionally the set of all topics with
 // handlers can be returned via the Topics function. These actions are
 // safe to use in concurrent code.
-type Collection struct {
+type collection struct {
 	sync.RWMutex
 	handlers map[string]HandlerConfig
 }
@@ -50,7 +50,7 @@ type Collection struct {
 // Get returns the HandlerConfig associated with a given topic, and a
 // Boolean value indicating if the topic was found at all. It is safe
 // to use Get from concurrent code.
-func (h *Collection) Get(topic string) (handlerCfg HandlerConfig, ok bool) {
+func (h *collection) Get(topic string) (handlerCfg HandlerConfig, ok bool) {
 	h.RLock()
 	handlerCfg, ok = h.handlers[topic]
 	h.RUnlock()
@@ -58,9 +58,9 @@ func (h *Collection) Get(topic string) (handlerCfg HandlerConfig, ok bool) {
 }
 
 // Topics returns a slice of all the topic names for which the
-// Collection contains a HandlerConfig. It is safe to use Topics from
+// collection contains a HandlerConfig. It is safe to use Topics from
 // concurrent code.
-func (h *Collection) Topics() []string {
+func (h *collection) Topics() []string {
 	h.RLock()
 	i := 0
 	count := len(h.handlers)
@@ -77,7 +77,7 @@ func (h *Collection) Topics() []string {
 // collection. If a Handler was already associated with the Topic,
 // then that association will be lost and replaced by the new one. It
 // is safe to use Set from concurrent code.
-func (h *Collection) Set(topic string, handlerCfg HandlerConfig) {
+func (h *collection) Set(topic string, handlerCfg HandlerConfig) {
 	h.Lock()
 	if h.handlers == nil {
 		h.handlers = make(map[string]HandlerConfig)

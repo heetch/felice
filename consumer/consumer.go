@@ -42,7 +42,7 @@ type Consumer struct {
 	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 	consumer    clusterConsumer
 	config      *Config
-	handlers    Collection
+	handlers    collection
 	wg          sync.WaitGroup
 	quit        chan struct{}
 }
