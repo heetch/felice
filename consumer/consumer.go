@@ -42,25 +42,23 @@ type Consumer struct {
 	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
 	consumer    clusterConsumer
 	config      *Config
-	handlers    *Collection
+	handlers    Collection
 	wg          sync.WaitGroup
 	quit        chan struct{}
 }
 
 // Handle registers the handler for the given topic.
 // Handle must be called before Serve.
-func (c *Consumer) Handle(topic string, h Handler) {
+func (c *Consumer) Handle(topic string, unformatter MessageUnformatter, h Handler) {
 	c.setup()
 
 	c.handlers.Set(topic, h)
+	c.Logger.Printf("Registered handler. topic=%q\n", topic)
 }
 
 func (c *Consumer) setup() {
 	if c.Logger == nil {
 		c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
-	}
-	if c.handlers == nil {
-		c.handlers = &Collection{Logger: c.Logger}
 	}
 
 	if c.quit == nil {
@@ -212,7 +210,7 @@ func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *Message {
 	return &msg
 }
 
-// MetricsReporter is a interface that can be passed to set metrics hook to receive metrics
+// MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
 // from the consumer as it handles messages.
 type MetricsReporter interface {
 	Report(Message, map[string]string)

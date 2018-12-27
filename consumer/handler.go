@@ -1,7 +1,6 @@
 package consumer
 
 import (
-	"log"
 	"sync"
 )
 
@@ -46,7 +45,6 @@ func (h HandlerFunc) HandleMessage(msg *Message) error {
 type Collection struct {
 	sync.RWMutex
 	handlers map[string]HandlerConfig
-	Logger   *log.Logger
 }
 
 // Get returns the HandlerConfig associated with a given topic, and a
@@ -83,9 +81,6 @@ func (h *Collection) Set(topic string, handlerCfg HandlerConfig) {
 	h.Lock()
 	if h.handlers == nil {
 		h.handlers = make(map[string]HandlerConfig)
-	}
-	if h.Logger != nil {
-		h.Logger.Printf("Registered handler. topic=%q\n", topic)
 	}
 	h.handlers[topic] = handlerCfg
 	h.Unlock()
