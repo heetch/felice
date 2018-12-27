@@ -52,7 +52,11 @@ type Consumer struct {
 func (c *Consumer) Handle(topic string, unformatter MessageUnformatter, h Handler) {
 	c.setup()
 
-	c.handlers.Set(topic, h)
+	c.handlers.Set(topic, HandlerConfig{
+		Handler:     h,
+		Unformatter: unformatter,
+	})
+
 	c.Logger.Printf("Registered handler. topic=%q\n", topic)
 }
 
@@ -168,22 +172,30 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 		for {
 			attempts++
 
-			m := c.convertMessage(msg)
 			// Note: The second returned value is not checked because we will never receive messages for a topic
 			// that it does not have a handler for.
 			h, _ := c.handlers.Get(msg.Topic)
-			err := h.(Handler).HandleMessage(m)
+
+			// if an error occurs during an unformat call, it usually means
+			// the chosen unformatter was the wrong one. the consumption must block
+			// and an error must be reported.
+			m, err := h.Unformatter.Unformat(*c.config, msg)
 			if err == nil {
-				offset.MarkOffset(msg, "")
-				if c.Metrics != nil {
-					c.Metrics.Report(*m, map[string]string{
-						"attempts":        strconv.Itoa(attempts),
-						"msgOffset":       strconv.FormatInt(msg.Offset, 10),
-						"remainingOffset": strconv.FormatInt(max.HighWaterMarkOffset()-msg.Offset, 10),
-					})
+				err = h.Handler.HandleMessage(m)
+				if err == nil {
+					offset.MarkOffset(msg, "")
+					if c.Metrics != nil {
+						c.Metrics.Report(*m, map[string]string{
+							"attempts":        strconv.Itoa(attempts),
+							"msgOffset":       strconv.FormatInt(msg.Offset, 10),
+							"remainingOffset": strconv.FormatInt(max.HighWaterMarkOffset()-msg.Offset, 10),
+						})
+					}
+					break
 				}
-				break
 			}
+
+			c.Logger.Printf("an error occured while consuming a message: %v, retrying after %s.", err, c.config.RetryInterval)
 
 			select {
 			case <-time.After(c.config.RetryInterval):
@@ -193,21 +205,6 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			}
 		}
 	}
-}
-
-func (c *Consumer) convertMessage(cm *sarama.ConsumerMessage) *Message {
-	var msg Message
-	if cm.Key != nil {
-		msg.Key = string(cm.Key)
-	}
-
-	msg.Topic = cm.Topic
-	msg.ProducedAt = cm.Timestamp
-	msg.Offset = cm.Offset
-	msg.Partition = cm.Partition
-	// msg.Body = cm.Value
-
-	return &msg
 }
 
 // MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
