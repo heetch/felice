@@ -267,7 +267,7 @@ func TestMessageConverterV1(t *testing.T) {
 		},
 	}
 
-	msg, err := MessageConverterV1().Convert(NewConfig("some-id"), &sm)
+	msg, err := MessageConverterV1().FromKafka(NewConfig("some-id"), &sm)
 	require.NoError(t, err)
 	require.Equal(t, sm.Topic, msg.Topic)
 	require.EqualValues(t, sm.Key, msg.Key.Bytes())
