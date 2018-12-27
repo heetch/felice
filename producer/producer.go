@@ -137,11 +137,6 @@ func (f *messageFormatterV1) Format(msg *Message) (*sarama.ProducerMessage, erro
 		msg.Headers["Message-Id"] = msg.ID
 	}
 
-	// if the Produced-At key is not already filled, override it with the current time
-	if _, ok := msg.Headers["Produced-At"]; !ok {
-		msg.Headers["Produced-At"] = time.Now().UTC().Format(time.RFC3339)
-	}
-
 	pmsg := sarama.ProducerMessage{
 		Topic: msg.Topic,
 		Key:   msg.Key,

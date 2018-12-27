@@ -30,5 +30,5 @@ func TestSendMessage(t *testing.T) {
 
 	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
 	err = p.SendMessage(msg)
-	require.EqualError(t, err, "failed to send message: cannot produce message")
+	require.EqualError(t, err, "producer: failed to send message: cannot produce message")
 }
