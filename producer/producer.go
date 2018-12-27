@@ -1,6 +1,7 @@
 package producer
 
 import (
+	"context"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -55,7 +56,13 @@ func NewFrom(producer sarama.SyncProducer, config Config) (*Producer, error) {
 }
 
 // SendMessage sends the given message to Kafka synchronously.
-func (p *Producer) SendMessage(msg *Message) error {
+func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	if p.config.Converter == nil {
 		return errors.New("producer: missing Converter in config")
 	}

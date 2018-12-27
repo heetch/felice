@@ -1,6 +1,7 @@
 package producer_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -25,10 +26,10 @@ func TestSendMessage(t *testing.T) {
 		}
 		return nil
 	})
-	err = p.SendMessage(msg)
+	err = p.SendMessage(context.Background(), msg)
 	require.NoError(t, err)
 
 	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
-	err = p.SendMessage(msg)
+	err = p.SendMessage(context.Background(), msg)
 	require.EqualError(t, err, "producer: failed to send message: cannot produce message")
 }

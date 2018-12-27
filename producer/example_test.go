@@ -1,6 +1,8 @@
 package producer_test
 
 import (
+	"context"
+
 	"github.com/Shopify/sarama"
 	"github.com/heetch/felice/codec"
 	"github.com/heetch/felice/producer"
@@ -17,7 +19,7 @@ func Example() {
 	}
 	defer p.Close()
 
-	err = p.SendMessage(&producer.Message{
+	err = p.SendMessage(context.Background(), &producer.Message{
 		Topic: "some topic",
 		Key:   codec.StringEncoder("some key"),
 		Body:  "some body",
@@ -48,7 +50,7 @@ func ExampleNewFrom() {
 		panic(err)
 	}
 
-	err = p2.SendMessage(&producer.Message{
+	err = p2.SendMessage(context.Background(), &producer.Message{
 		Topic: "some topic",
 		Key:   codec.StringEncoder("some key"),
 		Body:  "some body",
