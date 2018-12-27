@@ -117,7 +117,7 @@ func (pc *PartitionConsumerMock) ResetOffset(offset int64, metadata string) {}
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
 	c := &Consumer{}
-	c.Handle("topic", MessageUnformatterV1(), &testHandler{})
+	c.Handle("topic", MessageConverterV1(), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
 	require.True(t, ok)
@@ -192,7 +192,7 @@ func TestConsumerHandleMessages(t *testing.T) {
 		},
 	}
 
-	c.Handle("topic", MessageUnformatterV1(), handler)
+	c.Handle("topic", MessageConverterV1(), handler)
 	tl.LogLineMatches(`Registered handler. topic="topic"`)
 
 	ch := make(chan *sarama.ConsumerMessage, 1)
@@ -234,7 +234,7 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c.Metrics = mmh
 	handler := &testHandler{}
 
-	c.Handle("topic", MessageUnformatterV1(), handler)
+	c.Handle("topic", MessageConverterV1(), handler)
 	ch := make(chan *sarama.ConsumerMessage, 1)
 	ch <- &sarama.ConsumerMessage{
 		Topic: "topic",
@@ -252,7 +252,7 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 
 // Consumer.convertMessage converts a sarama.ConsumerMessage into our
 // own Message type.
-func TestMessageUnformatterV1(t *testing.T) {
+func TestMessageConverterV1(t *testing.T) {
 	now := time.Now()
 	sm := sarama.ConsumerMessage{
 		Topic:     "topic",
@@ -267,7 +267,7 @@ func TestMessageUnformatterV1(t *testing.T) {
 		},
 	}
 
-	msg, err := MessageUnformatterV1().Unformat(NewConfig("some-id"), &sm)
+	msg, err := MessageConverterV1().Convert(NewConfig("some-id"), &sm)
 	require.NoError(t, err)
 	require.Equal(t, sm.Topic, msg.Topic)
 	require.EqualValues(t, sm.Key, msg.Key.Bytes())
@@ -358,7 +358,7 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work! ")
 	}
-	c.Handle("foo", MessageUnformatterV1(), HandlerFunc(func(m *Message) error {
+	c.Handle("foo", MessageConverterV1(), HandlerFunc(func(m *Message) error {
 		return nil
 	}))
 	err := c.Serve(NewConfig("some-id"), "foo")

@@ -10,14 +10,14 @@
 //
 // Once you've constructed a consumer you must add message handlers to
 // it.  This is done by calling the Consumer.Handle method.  Each time
-// you call Handle you'll pass a topic name, a message unformatter and a type that implements
+// you call Handle you'll pass a topic name, a message converter and a type that implements
 // the Handler interface.  There can only ever be one handler
 // associated with a topic so, if you call Handle multiple times with
 // the same topic, they will update the handler registered for the
 // topic, and only the final one will count.  A typical call to Handle
 // looks like this:
 //
-//    c.Handle("testmsg", consumer.MessageUnformatterV1(), HandlerFunc(func(m *consumer.Message) error {
+//    c.Handle("testmsg", consumer.MessageConverterV1(), HandlerFunc(func(m *consumer.Message) error {
 //        // Do something of your choice here!
 //        return nil // .. or return an actual error.
 //    }))

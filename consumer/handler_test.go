@@ -78,7 +78,7 @@ func TestCollectionGetSet(t *testing.T) {
 			// We apply iterations of Topic⇒Handler associations in order
 			for _, hi := range tc.Handlers {
 				for k, v := range hi {
-					c.Set(k, HandlerConfig{v, MessageUnformatterV1()})
+					c.Set(k, HandlerConfig{v, MessageConverterV1()})
 				}
 			}
 			h, ok := c.Get(tc.TestTopic)
@@ -122,7 +122,7 @@ func TestCollectionTopics(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			var c collection
 			for _, t := range tc.Topics {
-				c.Set(t, HandlerConfig{&collectionTestHandler{}, MessageUnformatterV1()})
+				c.Set(t, HandlerConfig{&collectionTestHandler{}, MessageConverterV1()})
 			}
 			result := c.Topics()
 			require.ElementsMatch(t, result, tc.Expectation)

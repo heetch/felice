@@ -87,8 +87,8 @@ func (h *collection) Set(topic string, handlerCfg HandlerConfig) {
 }
 
 // HandlerConfig describes a handler and its configuration.
-// It is currently used to store the related message unformatter.
+// It is currently used to store the related message converter.
 type HandlerConfig struct {
-	Handler     Handler
-	Unformatter MessageUnformatter
+	Handler   Handler
+	Converter MessageConverter
 }

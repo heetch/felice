@@ -13,7 +13,7 @@ type Config struct {
 }
 
 // NewConfig creates a config with sane defaults. Parameter clientID is directly copied set in Sarama.Config.ClientID.
-func NewConfig(clientID string, formatter MessageConverter) Config {
+func NewConfig(clientID string, converter MessageConverter) Config {
 	var c Config
 
 	// Sarama configuration
@@ -26,6 +26,6 @@ func NewConfig(clientID string, formatter MessageConverter) Config {
 	c.Config.Producer.Return.Successes = true
 	c.Config.Producer.Return.Errors = true
 
-	c.Converter = formatter
+	c.Converter = converter
 	return c
 }

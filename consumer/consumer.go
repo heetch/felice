@@ -49,12 +49,12 @@ type Consumer struct {
 
 // Handle registers the handler for the given topic.
 // Handle must be called before Serve.
-func (c *Consumer) Handle(topic string, unformatter MessageUnformatter, h Handler) {
+func (c *Consumer) Handle(topic string, converter MessageConverter, h Handler) {
 	c.setup()
 
 	c.handlers.Set(topic, HandlerConfig{
-		Handler:     h,
-		Unformatter: unformatter,
+		Handler:   h,
+		Converter: converter,
 	})
 
 	c.Logger.Printf("Registered handler. topic=%q\n", topic)
@@ -181,9 +181,9 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			h, _ := c.handlers.Get(msg.Topic)
 
 			// if an error occurs during an unformat call, it usually means
-			// the chosen unformatter was the wrong one. the consumption must block
+			// the chosen converter was the wrong one. the consumption must block
 			// and an error must be reported.
-			m, err := h.Unformatter.Unformat(*c.config, msg)
+			m, err := h.Converter.Convert(*c.config, msg)
 			if err == nil {
 				err = h.Handler.HandleMessage(m)
 				if err == nil {
@@ -254,28 +254,28 @@ type Message struct {
 	ID string
 }
 
-// A MessageUnformatter transforms a sarama.ProducerMessage into a Message.
-// The role of the unformatter is to decouple the conventions defined by users from
+// A MessageConverter transforms a sarama.ProducerMessage into a Message.
+// The role of the converter is to decouple the conventions defined by users from
 // the consumer.
-// Each unformatter defines the way it wants to decode metadata, headers and body from the message received from Kafka
+// Each converter defines the way it wants to decode metadata, headers and body from the message received from Kafka
 // and returns a format agnostic Message structure.
-type MessageUnformatter interface {
-	Unformat(Config, *sarama.ConsumerMessage) (*Message, error)
+type MessageConverter interface {
+	Convert(Config, *sarama.ConsumerMessage) (*Message, error)
 }
 
-// MessageUnformatterV1 is the first version of the default unformatter.
-// It unformats messages formatted using the producer.MessageFormatterv1.
+// MessageConverterV1 is the first version of the default converter.
+// It converts messages formatted using the producer.MessageConverterV1.
 // The headers are extracted from Kafka headers and the body is decoded from JSON.
 // If the Message-Id and Produced-At headers are found, they will automatically be added to
 // the ID and ProducedAt fields.
-func MessageUnformatterV1() MessageUnformatter {
-	return new(messageUnformatterV1)
+func MessageConverterV1() MessageConverter {
+	return new(messageConverterV1)
 }
 
-type messageUnformatterV1 struct{}
+type messageConverterV1 struct{}
 
-// Unformat the message from Kafka headers and JSON body.
-func (f *messageUnformatterV1) Unformat(config Config, cm *sarama.ConsumerMessage) (*Message, error) {
+// Convert the message from Kafka headers and JSON body.
+func (f *messageConverterV1) Convert(config Config, cm *sarama.ConsumerMessage) (*Message, error) {
 	msg := Message{
 		Topic:      cm.Topic,
 		Headers:    make(map[string]string),
