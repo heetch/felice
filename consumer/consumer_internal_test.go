@@ -263,6 +263,7 @@ func TestMessageUnformatterV1(t *testing.T) {
 		Partition: 10,
 		Headers: []*sarama.RecordHeader{
 			&sarama.RecordHeader{Key: []byte("k"), Value: []byte("v")},
+			&sarama.RecordHeader{Key: []byte("Message-Id"), Value: []byte("some-id")},
 		},
 	}
 
@@ -274,6 +275,8 @@ func TestMessageUnformatterV1(t *testing.T) {
 	require.Equal(t, sm.Timestamp, msg.ProducedAt)
 	require.Equal(t, sm.Offset, msg.Offset)
 	require.Equal(t, sm.Partition, msg.Partition)
+	require.Equal(t, "some-id", msg.ID)
+	require.Equal(t, "v", msg.Headers["k"])
 }
 
 // The mockOffsetStash implements the OffsetStash interface for test
