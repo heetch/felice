@@ -17,9 +17,6 @@ type Config struct {
 	// The default value if 1 second.
 	RetryInterval time.Duration
 
-	// Codec used to decode the body of the message. Is required.
-	Codec codec.Codec
-
 	// Codec used to decode the message key. Defaults to codec.String.
 	KeyCodec codec.Codec
 }
@@ -27,7 +24,7 @@ type Config struct {
 // NewConfig creates a config with sane defaults.
 // The Sarama Cluster group mode will always be overwritten by the consumer
 // and thus cannot be changed, as the consumer is designed to use the ConsumerModePartitions mode.
-func NewConfig(clientID string, defaultCodec codec.Codec) Config {
+func NewConfig(clientID string) Config {
 	var c Config
 
 	// Sarama Cluster configuration
@@ -43,7 +40,6 @@ func NewConfig(clientID string, defaultCodec codec.Codec) Config {
 
 	// Felice consumer configuration
 	c.RetryInterval = 1 * time.Second
-	c.Codec = defaultCodec
 	c.KeyCodec = codec.String() // defaults to String
 	return c
 }
