@@ -6,18 +6,18 @@
 // discuss them below.  Thus you construct a Consumer by the normal Go
 // means:
 //
-//    var c felice.Consumer
+//    var c consumer.Consumer
 //
 // Once you've constructed a consumer you must add message handlers to
 // it.  This is done by calling the Consumer.Handle method.  Each time
-// you call Handle you'll pass a topic name and a type that implements
-// the handler.Handler interface.  Their can only ever be one handler
+// you call Handle you'll pass a topic name, a message unformatter and a type that implements
+// the Handler interface.  There can only ever be one handler
 // associated with a topic so, if you call Handle multiple times with
 // the same topic, they will update the handler registered for the
 // topic, and only the final one will count.  A typical call to Handle
 // looks like this:
 //
-//    c.Handle("testmsg", handler.HandlerFunc(func(m *message.Message) error {
+//    c.Handle("testmsg", consumer.MessageUnformatterV1(), HandlerFunc(func(m *consumer.Message) error {
 //        // Do something of your choice here!
 //        return nil // .. or return an actual error.
 //    }))
@@ -41,18 +41,14 @@
 //
 //    type MyFooHandler struct { }
 //
-//    func (mfh MyFooHandler) HandleMessage(msg *message.Message) error {
+//    func (mfh MyFooHandler) HandleMessage(msg *consumer.Message) error {
 //        fmt.Printf("%+v", *msg)
 //    }
-//
-// This approach has the advantage of not actually requiring you to
-// import the handler package when defining handlers for use with the
-// consumer.Consumer.
 //
 // The second approach is to cast a function to the HandlerFunc type
 // defined in this package:
 //
-//    h := handler.HandlerFunc(func(msg *message.Message) error {
+//    h := handler.HandlerFunc(func(msg *consumer.Message) error {
 //        fmt.Printf("%+v", *msg)
 //    })
 //
