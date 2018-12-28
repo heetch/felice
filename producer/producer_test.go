@@ -11,25 +11,30 @@ import (
 )
 
 func TestSendMessage(t *testing.T) {
-	cfg := producer.NewConfig("id", producer.MessageConverterV1())
-	msp := mocks.NewSyncProducer(t, &cfg.Config)
+	msgs := []*producer.Message{
+		producer.NewMessage("topic", "message"),
+		&producer.Message{Topic: "topic", Body: "message"},
+	}
 
-	p, err := producer.NewFrom(msp, cfg)
-	require.NoError(t, err)
+	for _, msg := range msgs {
+		cfg := producer.NewConfig("id", producer.MessageConverterV1())
+		msp := mocks.NewSyncProducer(t, &cfg.Config)
 
-	msg := producer.NewMessage("topic", "message")
+		p, err := producer.NewFrom(msp, cfg)
+		require.NoError(t, err)
 
-	msp.ExpectSendMessageWithCheckerFunctionAndSucceed(func(val []byte) error {
-		exp := "\"message\""
-		if string(val) != exp {
-			return fmt.Errorf("expected: %s but got: %s", exp, val)
-		}
-		return nil
-	})
-	err = p.SendMessage(context.Background(), msg)
-	require.NoError(t, err)
+		msp.ExpectSendMessageWithCheckerFunctionAndSucceed(func(val []byte) error {
+			exp := "\"message\""
+			if string(val) != exp {
+				return fmt.Errorf("expected: %s but got: %s", exp, val)
+			}
+			return nil
+		})
+		err = p.SendMessage(context.Background(), msg)
+		require.NoError(t, err)
 
-	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
-	err = p.SendMessage(context.Background(), msg)
-	require.EqualError(t, err, "producer: failed to send message: cannot produce message")
+		msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
+		err = p.SendMessage(context.Background(), msg)
+		require.EqualError(t, err, "producer: failed to send message: cannot produce message")
+	}
 }

@@ -67,6 +67,8 @@ func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
 		return errors.New("producer: missing Converter in config")
 	}
 
+	msg.prepare()
+
 	pmsg, err := p.config.Converter.ToKafka(ctx, p.config, msg)
 	if err != nil {
 		return err
@@ -103,8 +105,20 @@ type Message struct {
 	// Headers of the message.
 	Headers map[string]string
 
-	// Unique ID of the message.
+	// Unique ID of the message. Defaults to an uuid.
 	ID string
+}
+
+// prepare makes sure the message contains a unique ID and
+// the Headers map memory is allocated.
+func (m *Message) prepare() {
+	if m.ID == "" {
+		m.ID = uuid.Must(uuid.NewV4()).String()
+	}
+
+	if m.Headers == nil {
+		m.Headers = make(map[string]string)
+	}
 }
 
 // NewMessage creates a configured message with a generated unique ID.
