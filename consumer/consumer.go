@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"strconv"
 	"sync"
 	"time"
 
@@ -189,10 +188,9 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 				if err == nil {
 					offset.MarkOffset(msg, "")
 					if c.Metrics != nil {
-						c.Metrics.Report(*m, map[string]string{
-							"attempts":        strconv.Itoa(attempts),
-							"msgOffset":       strconv.FormatInt(msg.Offset, 10),
-							"remainingOffset": strconv.FormatInt(max.HighWaterMarkOffset()-msg.Offset, 10),
+						c.Metrics.Report(*m, &Metrics{
+							Attempts:        attempts,
+							RemainingOffset: max.HighWaterMarkOffset() - msg.Offset,
 						})
 					}
 					break
@@ -214,7 +212,15 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 // MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
 // from the consumer as it handles messages.
 type MetricsReporter interface {
-	Report(Message, map[string]string)
+	Report(Message, *Metrics)
+}
+
+// Metrics contains information about message consumption for a given partition.
+type Metrics struct {
+	// Number of times the consumer tried to consume this message.
+	Attempts int
+	// Best effort information about the remaining unconsumed messages in the partition
+	RemainingOffset int64
 }
 
 type offsetStash interface {

@@ -220,14 +220,14 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c := Consumer{config: &cfg}
 	mmh := &metricsHook{
 		t: t,
-		testCase: func(msg Message, meta map[string]string) (string, func(t *testing.T)) {
+		testCase: func(msg Message, meta *Metrics) (string, func(t *testing.T)) {
 			return "metrics", func(t *testing.T) {
 				require.Equal(t, "topic", msg.Topic)
 				require.EqualValues(t, `"body"`, msg.Body.Bytes())
 				require.EqualValues(t, "key", msg.Key.Bytes())
-				require.Equal(t, "1", meta["attempts"])
-				require.Equal(t, "1", meta["msgOffset"])
-				require.Equal(t, "0", meta["remainingOffset"])
+				require.EqualValues(t, 1, msg.Offset)
+				require.EqualValues(t, 1, meta.Attempts)
+				require.EqualValues(t, 0, meta.RemainingOffset)
 			}
 		},
 	}
@@ -237,13 +237,14 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c.Handle("topic", MessageConverterV1(), handler)
 	ch := make(chan *sarama.ConsumerMessage, 1)
 	ch <- &sarama.ConsumerMessage{
-		Topic: "topic",
-		Key:   []byte("key"),
-		Value: []byte(`"body"`),
+		Topic:  "topic",
+		Key:    []byte("key"),
+		Value:  []byte(`"body"`),
+		Offset: 1,
 	}
 	close(ch)
 
-	hwm := &mockHighWaterMarker{}
+	hwm := &mockHighWaterMarker{HighWaterMarkOffsetCount: 1}
 	mos := &mockOffsetStash{}
 	c.handleMessages(ch, mos, hwm, "topic", 1)
 
@@ -310,14 +311,14 @@ func (m *mockHighWaterMarker) HighWaterMarkOffset() int64 {
 type metricsHook struct {
 	ReportCount int
 	t           *testing.T
-	testCase    func(msg Message, metadatas map[string]string) (string, func(*testing.T))
+	testCase    func(msg Message, metadatas *Metrics) (string, func(*testing.T))
 }
 
 // Report counts how many times it has been called, and executes any
 // testCase that has been added to the metricsHook.  This allows us to
 // reuse the metricsHook type every time we want to make assertions
 // about the information it has been provided.
-func (mmh *metricsHook) Report(msg Message, metadatas map[string]string) {
+func (mmh *metricsHook) Report(msg Message, metadatas *Metrics) {
 	mmh.ReportCount++
 	mmh.t.Run(mmh.testCase(msg, metadatas))
 }
