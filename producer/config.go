@@ -12,7 +12,7 @@ type Config struct {
 	Converter MessageConverter
 }
 
-// NewConfig creates a config with sane defaults. Parameter clientID is directly copied set in Sarama.Config.ClientID.
+// NewConfig creates a config with sane defaults. Parameter clientID is directly copied in Sarama.Config.ClientID.
 func NewConfig(clientID string, converter MessageConverter) Config {
 	var c Config
 

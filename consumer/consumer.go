@@ -227,9 +227,9 @@ type highWaterMarker interface {
 
 // Message represents a message received from Kafka.
 // When using Felice's Consumer, any Handlers that you register
-// will receive Messages as they're arguments.
+// will receive Messages as their arguments.
 type Message struct {
-	// The Kafka topic this Message applies to.
+	// The Kafka topic this message applies to.
 	Topic string
 
 	// Key on which this message was sent to.
@@ -254,7 +254,7 @@ type Message struct {
 	ID string
 }
 
-// A MessageConverter transforms a sarama.ProducerMessage into a Message.
+// A MessageConverter transforms a sarama.ConsumerMessage into a Message.
 // The role of the converter is to decouple the conventions defined by users from
 // the consumer.
 // Each converter defines the way it wants to decode metadata, headers and body from the message received from Kafka
