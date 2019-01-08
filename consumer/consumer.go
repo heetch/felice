@@ -86,16 +86,14 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 	c.setup()
 
 	c.config = &config
-	// Always make sure we are using the right group mode: One chan per partition instead of default multiplexing behaviour.
-	if c.config.Group.Mode != cluster.ConsumerModePartitions {
-		c.Logger.Println("warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
-		c.config.Group.Mode = cluster.ConsumerModePartitions
+	err := c.validateConfig()
+	if err != nil {
+		return err
 	}
 
 	topics := c.handlers.Topics()
 
 	consumerGroup := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
-	var err error
 	c.consumer, err = c.newConsumer(
 		addrs,
 		consumerGroup,
@@ -121,6 +119,16 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 
 	err = c.handlePartitions(c.consumer.Partitions())
 	return err
+}
+
+func (c *Consumer) validateConfig() error {
+	// Always make sure we are using the right group mode: One chan per partition instead of default multiplexing behaviour.
+	if c.config.Group.Mode != cluster.ConsumerModePartitions {
+		c.Logger.Println("warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
+		c.config.Group.Mode = cluster.ConsumerModePartitions
+	}
+
+	return nil
 }
 
 // Stop the consumer.

@@ -359,3 +359,37 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	err := c.Serve(NewConfig("some-id"), "foo")
 	require.Error(t, err)
 }
+
+// checks if the consumer validates the configuration correctly.
+func TestValidateConfig(t *testing.T) {
+	// default configuration must work with no issue and no logs should be outputted.
+	t.Run("Default config", func(t *testing.T) {
+		var buf bytes.Buffer
+		var c Consumer
+		c.Logger = log.New(&buf, "", 0)
+		c.setup()
+
+		cfg := NewConfig("some id")
+		c.config = &cfg
+		err := c.validateConfig()
+		require.NoError(t, err)
+		require.Zero(t, buf.Len())
+	})
+
+	// changing the cluster group mode should provoke a log and an override of the value
+	// with the correct one.
+	t.Run("Different Group mode", func(t *testing.T) {
+		var buf bytes.Buffer
+		var c Consumer
+		c.Logger = log.New(&buf, "", 0)
+		c.setup()
+
+		cfg := NewConfig("some id")
+		c.config = &cfg
+		c.config.Group.Mode = cluster.ConsumerModeMultiplex
+		err := c.validateConfig()
+		require.NoError(t, err)
+		require.NotZero(t, buf.Len())
+		require.Equal(t, cluster.ConsumerModePartitions, c.config.Group.Mode)
+	})
+}
