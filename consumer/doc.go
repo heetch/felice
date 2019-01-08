@@ -1,4 +1,4 @@
-// Consumer is Felice's primary entrance point for receiving messages
+// Package consumer is Felice's primary entrance point for receiving messages
 // from a Kafka cluster.
 //
 // There is no special construction function for the Consumer
@@ -6,7 +6,7 @@
 // discuss them below.  Thus you construct a Consumer by the normal Go
 // means:
 //
-//    c := felice.Consumer{}
+//    var c felice.Consumer
 //
 // Once you've constructed a consumer you must add message handlers to
 // it.  This is done by calling the Consumer.Handle method.  Each time
@@ -23,7 +23,7 @@
 //    }))
 //
 // Once you've registered all your handlers you may call
-// Consumer.Serve. Serve requires a client ID and a slice of strings,
+// Consumer.Serve. Serve requires a configuration and a slice of strings,
 // each of which is the address of a Kafka broker to attempt to
 // communicate with. Serve will start a go routine for each partition
 // to consume messages and pass them to their per-topic
@@ -33,22 +33,4 @@
 //
 // Note that any calls to Consumer.Handle after
 // Consumer.Serve has been called will have no effect.
-//
-// Tweaking the consumer:
-// The first public member is the RetryInterval, a time.Duration that
-// controls how long the Felice consumer will wait before trying to
-// consume a message from Kafka that failed the first time around.
-// The default value if 1 second.
-//
-// The second public member is Metrics.  Metrics stores a type that
-// implements the felice.MetricsReporter interface.  If you provide an
-// implementation, then it's Report function will be called every time
-// a message is successfully handled.  The Report function will
-// receive a copy of the message.Message that was handled, along with
-// a map[string]string containing metrics about the handling of the
-// message.  Currently we pass the following metrics: "attempts" (the
-// number of attempts it took before the message was handled);
-// "msgOffset" (the marked offset for the message on the topic); and
-// "remainingOffset" (the difference between the high water mark and
-// the current offset).
 package consumer

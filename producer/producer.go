@@ -16,27 +16,13 @@ type Producer struct {
 // New creates a configured Producer.
 // This Producer is synchronous, this means that it will wait for all the replicas to
 // acknowledge the message.
-func New(clientID string, maxRetry int, addrs ...string) (*Producer, error) {
-	config := newSaramaConfiguration(clientID, maxRetry)
-	p, err := sarama.NewSyncProducer(addrs, config)
+func New(config Config, addrs ...string) (*Producer, error) {
+	p, err := sarama.NewSyncProducer(addrs, &config.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create a producer")
 	}
 
 	return &Producer{SyncProducer: p}, nil
-}
-
-func newSaramaConfiguration(clientID string, maxRetry int) *sarama.Config {
-	config := sarama.NewConfig()
-	config.Version = sarama.V1_0_0_0
-	config.ClientID = clientID
-	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-	config.Producer.Retry.Max = maxRetry             // Retry up to maxRetry times to produce the message
-	// required for the SyncProducer, see https://godoc.org/github.com/Shopify/sarama#SyncProducer
-	config.Producer.Return.Successes = true
-	config.Producer.Return.Errors = true
-
-	return config
 }
 
 // Send creates and sends a message to Kafka synchronously.

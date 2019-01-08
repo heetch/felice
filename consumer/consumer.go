@@ -27,16 +27,25 @@ type clusterConsumer interface {
 // register per-topic handlers and, finally, call it's Serve method to
 // begin consuming messages.
 type Consumer struct {
-	RetryInterval time.Duration
-	Metrics       MetricsReporter
+	// Metrics stores a type that implements the felice.MetricsReporter interface.
+	// If you provide an implementation, then its Report function will be called every time
+	// a message is successfully handled.  The Report function will
+	// receive a copy of the message.Message that was handled, along with
+	// a map[string]string containing metrics about the handling of the
+	// message.  Currently we pass the following metrics: "attempts" (the
+	// number of attempts it took before the message was handled);
+	// "msgOffset" (the marked offset for the message on the topic); and
+	// "remainingOffset" (the difference between the high water mark and
+	// the current offset).
+	Metrics MetricsReporter
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
-	Logger        *log.Logger	
-	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
-	consumer      clusterConsumer
-	config        *cluster.Config
-	handlers      *handler.Collection
-	wg            sync.WaitGroup
-	quit          chan struct{}
+	Logger      *log.Logger
+	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
+	consumer    clusterConsumer
+	config      *Config
+	handlers    *handler.Collection
+	wg          sync.WaitGroup
+	quit        chan struct{}
 }
 
 // Handle registers the handler for the given topic.
@@ -59,9 +68,6 @@ func (c *Consumer) setup() {
 		c.quit = make(chan struct{})
 	}
 
-	if c.RetryInterval == 0 {
-		c.RetryInterval = time.Second
-	}
 	if c.newConsumer == nil {
 		c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
@@ -70,39 +76,29 @@ func (c *Consumer) setup() {
 	}
 }
 
-func newClusterConfig(clientID string) *cluster.Config {
-	c := cluster.NewConfig()
-	c.ClientID = clientID
-	c.Consumer.Return.Errors = true
-	// Specify that we are using at least Kafka v1.0
-	c.Version = sarama.V1_0_0_0
-	// Distribute load across instances using round robin strategy
-	c.Group.PartitionStrategy = cluster.StrategyRoundRobin
-	// One chan per partition instead of default multiplexing behaviour.
-	c.Group.Mode = cluster.ConsumerModePartitions
-
-	return c
-}
-
 // Serve runs the consumer and listens for new messages on the given
 // topics.  You must provide it with unique clientID and the address
 // of one or more Kafka brokers.  Serve will block until it is
 // instructed to stop, which you can achieve by calling Consumer.Stop.
 // When Serve terminates it will return an Error or nil to indicate
 // that it excited without error.
-func (c *Consumer) Serve(clientID string, addrs ...string) error {
+func (c *Consumer) Serve(config Config, addrs ...string) error {
 	c.setup()
 
-	c.config = newClusterConfig(clientID)
+	c.config = &config
+	err := c.validateConfig()
+	if err != nil {
+		return err
+	}
+
 	topics := c.handlers.Topics()
 
-	consumerGroup := fmt.Sprintf("%s-consumer-group", clientID)
-	var err error
+	consumerGroup := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
 	c.consumer, err = c.newConsumer(
 		addrs,
 		consumerGroup,
 		topics,
-		c.config)
+		&c.config.Config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
@@ -123,6 +119,16 @@ func (c *Consumer) Serve(clientID string, addrs ...string) error {
 
 	err = c.handlePartitions(c.consumer.Partitions())
 	return err
+}
+
+func (c *Consumer) validateConfig() error {
+	// Always make sure we are using the right group mode: One chan per partition instead of default multiplexing behaviour.
+	if c.config.Group.Mode != cluster.ConsumerModePartitions {
+		c.Logger.Println("warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
+		c.config.Group.Mode = cluster.ConsumerModePartitions
+	}
+
+	return nil
 }
 
 // Stop the consumer.
@@ -183,7 +189,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			}
 
 			select {
-			case <-time.After(c.RetryInterval):
+			case <-time.After(c.config.RetryInterval):
 			case <-c.quit:
 				c.Logger.Println("partition messages - closing" + logSuffix)
 				return
@@ -220,4 +226,3 @@ type offsetStash interface {
 type highWaterMarker interface {
 	HighWaterMarkOffset() int64
 }
-

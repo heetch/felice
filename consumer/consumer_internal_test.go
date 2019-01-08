@@ -32,7 +32,7 @@ type TestLogger struct {
 // NewTestLogger constructs a test logger we can make assertions against
 func NewTestLogger(t *testing.T) *TestLogger {
 	tl := &TestLogger{
-		t:   t,
+		t: t,
 	}
 	tl.Logger = log.New(&tl.buf, "[Felice] ", log.LstdFlags)
 	return tl
@@ -133,7 +133,6 @@ func TestSetUp(t *testing.T) {
 	c.setup()
 	require.NotNil(t, c.handlers)
 	require.NotNil(t, c.quit)
-	require.Equal(t, c.RetryInterval, time.Second)
 }
 
 // Consumer.handlePartitions exits when we close the channel of PartitionConsumers
@@ -275,16 +274,6 @@ func TestConvertMessage(t *testing.T) {
 	require.Equal(t, sm.Partition, msg.Partition)
 }
 
-// Consumer.newClusterConfig create a new configuration for the cluster.
-func TestNewClusterConfig(t *testing.T) {
-	c := newClusterConfig("test")
-	require.Equal(t, "test", c.ClientID)
-	require.True(t, c.Consumer.Return.Errors)
-	require.Equal(t, sarama.V1_0_0_0, c.Version)
-	require.Equal(t, cluster.StrategyRoundRobin, c.Group.PartitionStrategy)
-	require.Equal(t, cluster.ConsumerModePartitions, c.Group.Mode)
-}
-
 // The mockOffsetStash implements the OffsetStash interface for test
 // purposes.
 type mockOffsetStash struct {
@@ -367,6 +356,40 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	c.Handle("foo", handler.HandlerFunc(func(m *message.Message) error {
 		return nil
 	}))
-	err := c.Serve("foo")
+	err := c.Serve(NewConfig("some-id"), "foo")
 	require.Error(t, err)
+}
+
+// checks if the consumer validates the configuration correctly.
+func TestValidateConfig(t *testing.T) {
+	// default configuration must work with no issue and no logs should be outputted.
+	t.Run("Default config", func(t *testing.T) {
+		var buf bytes.Buffer
+		var c Consumer
+		c.Logger = log.New(&buf, "", 0)
+		c.setup()
+
+		cfg := NewConfig("some id")
+		c.config = &cfg
+		err := c.validateConfig()
+		require.NoError(t, err)
+		require.Zero(t, buf.Len())
+	})
+
+	// changing the cluster group mode should provoke a log and an override of the value
+	// with the correct one.
+	t.Run("Different Group mode", func(t *testing.T) {
+		var buf bytes.Buffer
+		var c Consumer
+		c.Logger = log.New(&buf, "", 0)
+		c.setup()
+
+		cfg := NewConfig("some id")
+		c.config = &cfg
+		c.config.Group.Mode = cluster.ConsumerModeMultiplex
+		err := c.validateConfig()
+		require.NoError(t, err)
+		require.NotZero(t, buf.Len())
+		require.Equal(t, cluster.ConsumerModePartitions, c.config.Group.Mode)
+	})
 }
