@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// checks if NewConfig returns the right defaults.
 func TestNewConfig(t *testing.T) {
 	c := NewConfig("test")
 	require.Equal(t, "test", c.ClientID)

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// checks if codec encodes to the proper output.
 func TestEncoding(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -36,7 +35,6 @@ func TestEncoding(t *testing.T) {
 	}
 }
 
-// checks if correct error messages are returned when trying to encode incompatible values.
 func TestEncodingErrors(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -58,7 +56,6 @@ func TestEncodingErrors(t *testing.T) {
 	}
 }
 
-// checks if codec decodes to the right types with the right values.
 func TestDecoding(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -83,7 +80,6 @@ func TestDecoding(t *testing.T) {
 	}
 }
 
-// checks if correct error messages are returned when trying to encode incompatible values.
 func TestDecodingErrors(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -106,7 +102,6 @@ func TestDecodingErrors(t *testing.T) {
 	}
 }
 
-// checks if encoding a value decodes to the same value, for non interface values.
 func TestRoundTrip(t *testing.T) {
 	tests := []struct {
 		name  string
