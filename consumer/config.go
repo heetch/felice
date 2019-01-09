@@ -5,6 +5,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
+	"github.com/heetch/felice/codec"
 )
 
 // Config is used to configure the Consumer.
@@ -15,6 +16,9 @@ type Config struct {
 	// consume a message from Kafka that failed the first time around.
 	// The default value if 1 second.
 	RetryInterval time.Duration
+
+	// Codec used to decode the message key. Defaults to codec.String.
+	KeyCodec codec.Codec
 }
 
 // NewConfig creates a config with sane defaults.
@@ -36,6 +40,6 @@ func NewConfig(clientID string) Config {
 
 	// Felice consumer configuration
 	c.RetryInterval = 1 * time.Second
-
+	c.KeyCodec = codec.String() // defaults to String
 	return c
 }

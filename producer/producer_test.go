@@ -1,46 +1,40 @@
 package producer_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/Shopify/sarama/mocks"
-	"github.com/heetch/felice/message"
 	"github.com/heetch/felice/producer"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSendMessage(t *testing.T) {
-	msp := mocks.NewSyncProducer(t, nil)
-	p := producer.Producer{SyncProducer: msp}
+	msgs := []*producer.Message{
+		producer.NewMessage("topic", "message"),
+		&producer.Message{Topic: "topic", Body: "message"},
+	}
 
-	msg, err := message.New("topic", "message")
-	require.NoError(t, err)
+	for _, msg := range msgs {
+		cfg := producer.NewConfig("id", producer.MessageConverterV1())
+		msp := mocks.NewSyncProducer(t, &cfg.Config)
 
-	msp.ExpectSendMessageWithCheckerFunctionAndSucceed(func(val []byte) error {
-		exp := "\"message\""
-		if string(val) != exp {
-			return fmt.Errorf("expected: %s but got: %s", exp, val)
-		}
-		return nil
-	})
-	err = p.SendMessage(msg)
-	require.NoError(t, err)
+		p, err := producer.NewFrom(msp, cfg)
+		require.NoError(t, err)
 
-	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
-	err = p.SendMessage(msg)
-	require.EqualError(t, err, "failed to send message: cannot produce message")
-}
+		msp.ExpectSendMessageWithCheckerFunctionAndSucceed(func(val []byte) error {
+			exp := "\"message\""
+			if string(val) != exp {
+				return fmt.Errorf("expected: %s but got: %s", exp, val)
+			}
+			return nil
+		})
+		err = p.SendMessage(context.Background(), msg)
+		require.NoError(t, err)
 
-func TestSend(t *testing.T) {
-	msp := mocks.NewSyncProducer(t, nil)
-	p := producer.Producer{SyncProducer: msp}
-
-	msp.ExpectSendMessageAndSucceed()
-	_, err := p.Send("topic", "message")
-	require.NoError(t, err)
-
-	msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
-	_, err = p.Send("topic", "message")
-	require.EqualError(t, err, "failed to send message: cannot produce message")
+		msp.ExpectSendMessageAndFail(fmt.Errorf("cannot produce message"))
+		err = p.SendMessage(context.Background(), msg)
+		require.EqualError(t, err, "producer: failed to send message: cannot produce message")
+	}
 }

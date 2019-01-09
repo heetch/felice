@@ -12,9 +12,6 @@ import (
 
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/stretchr/testify/require"
-
-	"github.com/heetch/felice/consumer/handler"
-	"github.com/heetch/felice/message"
 )
 
 const (
@@ -120,7 +117,7 @@ func (pc *PartitionConsumerMock) ResetOffset(offset int64, metadata string) {}
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
 	c := &Consumer{}
-	c.Handle("topic", &testHandler{})
+	c.Handle("topic", MessageConverterV1(NewConfig("")), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
 	require.True(t, ok)
@@ -177,31 +174,32 @@ func TestConsumerHandlePartitions(t *testing.T) {
 	require.Equal(t, 1, pcm.MessagesCount)
 }
 
-// Consumer.handleMessages calls the per-topic Handler for each
+// consumer.handleMessages calls the per-topic Handler for each
 // message that arrives.
 func TestConsumerHandleMessages(t *testing.T) {
 	tl := NewTestLogger(t)
 
-	c := Consumer{Logger: tl.Logger}
+	cfg := NewConfig("some-id")
+	c := Consumer{Logger: tl.Logger, config: &cfg}
 	handler := &testHandler{
 		t: t,
-		testCase: func(m *message.Message) (string, func(t *testing.T)) {
+		testCase: func(m *Message) (string, func(t *testing.T)) {
 			return "topic", func(t *testing.T) {
 				require.Equal(t, "topic", m.Topic)
-				require.EqualValues(t, "body", m.Body)
-				require.EqualValues(t, "key", m.Key)
+				require.EqualValues(t, `"body"`, m.Body.Bytes())
+				require.EqualValues(t, "key", m.Key.Bytes())
 			}
 		},
 	}
 
-	c.Handle("topic", handler)
+	c.Handle("topic", MessageConverterV1(NewConfig("")), handler)
 	tl.LogLineMatches(`Registered handler. topic="topic"`)
 
 	ch := make(chan *sarama.ConsumerMessage, 1)
 	ch <- &sarama.ConsumerMessage{
 		Topic: "topic",
 		Key:   []byte("key"),
-		Value: []byte("body"),
+		Value: []byte(`"body"`),
 	}
 	close(ch)
 
@@ -218,33 +216,35 @@ func TestConsumerHandleMessages(t *testing.T) {
 // metadata to a metrics hook function that has been provided to
 // the consumer via the Consumer.Metrics field.
 func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
-	c := Consumer{}
+	cfg := NewConfig("some-id")
+	c := Consumer{config: &cfg}
 	mmh := &metricsHook{
 		t: t,
-		testCase: func(msg message.Message, meta map[string]string) (string, func(t *testing.T)) {
+		testCase: func(msg Message, meta *Metrics) (string, func(t *testing.T)) {
 			return "metrics", func(t *testing.T) {
 				require.Equal(t, "topic", msg.Topic)
-				require.EqualValues(t, "body", msg.Body)
-				require.EqualValues(t, "key", msg.Key)
-				require.Equal(t, "1", meta["attempts"])
-				require.Equal(t, "1", meta["msgOffset"])
-				require.Equal(t, "0", meta["remainingOffset"])
+				require.EqualValues(t, `"body"`, msg.Body.Bytes())
+				require.EqualValues(t, "key", msg.Key.Bytes())
+				require.EqualValues(t, 1, msg.Offset)
+				require.EqualValues(t, 1, meta.Attempts)
+				require.EqualValues(t, 0, meta.RemainingOffset)
 			}
 		},
 	}
 	c.Metrics = mmh
 	handler := &testHandler{}
 
-	c.Handle("topic", handler)
+	c.Handle("topic", MessageConverterV1(NewConfig("")), handler)
 	ch := make(chan *sarama.ConsumerMessage, 1)
 	ch <- &sarama.ConsumerMessage{
-		Topic: "topic",
-		Key:   []byte("key"),
-		Value: []byte("body"),
+		Topic:  "topic",
+		Key:    []byte("key"),
+		Value:  []byte(`"body"`),
+		Offset: 1,
 	}
 	close(ch)
 
-	hwm := &mockHighWaterMarker{}
+	hwm := &mockHighWaterMarker{HighWaterMarkOffsetCount: 1}
 	mos := &mockOffsetStash{}
 	c.handleMessages(ch, mos, hwm, "topic", 1)
 
@@ -252,26 +252,33 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 }
 
 // Consumer.convertMessage converts a sarama.ConsumerMessage into our
-// own message.Message type.
-func TestConvertMessage(t *testing.T) {
-	c := &Consumer{}
+// own Message type.
+func TestMessageConverterV1(t *testing.T) {
 	now := time.Now()
-	sm := &sarama.ConsumerMessage{
+	sm := sarama.ConsumerMessage{
 		Topic:     "topic",
 		Key:       []byte("key"),
 		Value:     []byte("body"),
 		Timestamp: now,
 		Offset:    10,
 		Partition: 10,
+		Headers: []*sarama.RecordHeader{
+			&sarama.RecordHeader{Key: []byte("k"), Value: []byte("v")},
+			&sarama.RecordHeader{Key: []byte("Message-Id"), Value: []byte("some-id")},
+		},
 	}
 
-	msg := c.convertMessage(sm)
+	cfg := NewConfig("some-id")
+	msg, err := MessageConverterV1(cfg).FromKafka(&sm)
+	require.NoError(t, err)
 	require.Equal(t, sm.Topic, msg.Topic)
-	require.EqualValues(t, sm.Key, msg.Key)
-	require.EqualValues(t, sm.Value, msg.Body)
+	require.EqualValues(t, sm.Key, msg.Key.Bytes())
+	require.EqualValues(t, sm.Value, msg.Body.Bytes())
 	require.Equal(t, sm.Timestamp, msg.ProducedAt)
 	require.Equal(t, sm.Offset, msg.Offset)
 	require.Equal(t, sm.Partition, msg.Partition)
+	require.Equal(t, "some-id", msg.ID)
+	require.Equal(t, "v", msg.Headers["k"])
 }
 
 // The mockOffsetStash implements the OffsetStash interface for test
@@ -305,29 +312,29 @@ func (m *mockHighWaterMarker) HighWaterMarkOffset() int64 {
 type metricsHook struct {
 	ReportCount int
 	t           *testing.T
-	testCase    func(msg message.Message, metadatas map[string]string) (string, func(*testing.T))
+	testCase    func(msg Message, metadatas *Metrics) (string, func(*testing.T))
 }
 
 // Report counts how many times it has been called, and executes any
 // testCase that has been added to the metricsHook.  This allows us to
 // reuse the metricsHook type every time we want to make assertions
 // about the information it has been provided.
-func (mmh *metricsHook) Report(msg message.Message, metadatas map[string]string) {
+func (mmh *metricsHook) Report(msg Message, metadatas *Metrics) {
 	mmh.ReportCount++
 	mmh.t.Run(mmh.testCase(msg, metadatas))
 }
 
-// testHandler implements the handler.Handler interface for testing
+// testHandler implements the Handler interface for testing
 // purposes. It can be used to make assertions about the message
 // passed to HandleMessage.
 type testHandler struct {
 	t *testing.T
 	// A testCase is a function that returns a name to be passed
 	// as the first parameter of testing.T.Run and Curryed
-	// function that forms a closure over the message.Message
+	// function that forms a closure over the Message
 	// provided and can then be passed as the 2nd parameter of
 	// testing.T.Run.
-	testCase  func(*message.Message) (string, func(t *testing.T))
+	testCase  func(*Message) (string, func(t *testing.T))
 	CallCount int
 }
 
@@ -335,7 +342,7 @@ type testHandler struct {
 // if a testCase is set on the testHandler, it will run it with the
 // message that HandleMessage received, allowing us to make assertions
 // about the nature of that message.
-func (h *testHandler) HandleMessage(m *message.Message) error {
+func (h *testHandler) HandleMessage(m *Message) error {
 	h.CallCount++
 	if h.testCase != nil {
 		// We use testing.T.Run because we can easily see that
@@ -351,9 +358,9 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	tl := NewTestLogger(t)
 	c := &Consumer{Logger: tl.Logger}
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
-		return nil, fmt.Errorf("oh noes! it doesn't work!")
+		return nil, fmt.Errorf("oh noes! it doesn't work! ")
 	}
-	c.Handle("foo", handler.HandlerFunc(func(m *message.Message) error {
+	c.Handle("foo", MessageConverterV1(NewConfig("")), HandlerFunc(func(m *Message) error {
 		return nil
 	}))
 	err := c.Serve(NewConfig("some-id"), "foo")

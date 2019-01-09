@@ -6,18 +6,18 @@
 // discuss them below.  Thus you construct a Consumer by the normal Go
 // means:
 //
-//    var c felice.Consumer
+//    var c consumer.Consumer
 //
 // Once you've constructed a consumer you must add message handlers to
 // it.  This is done by calling the Consumer.Handle method.  Each time
-// you call Handle you'll pass a topic name and a type that implements
-// the handler.Handler interface.  Their can only ever be one handler
+// you call Handle you'll pass a topic name, a message converter and a type that implements
+// the Handler interface.  There can only ever be one handler
 // associated with a topic so, if you call Handle multiple times with
 // the same topic, they will update the handler registered for the
 // topic, and only the final one will count.  A typical call to Handle
 // looks like this:
 //
-//    c.Handle("testmsg", handler.HandlerFunc(func(m *message.Message) error {
+//    c.Handle("testmsg", consumer.MessageConverterV1(cfg), HandlerFunc(func(m *consumer.Message) error {
 //        // Do something of your choice here!
 //        return nil // .. or return an actual error.
 //    }))
@@ -33,4 +33,22 @@
 //
 // Note that any calls to Consumer.Handle after
 // Consumer.Serve has been called will have no effect.
+//
+// The Handler interface defines the signature for all felice
+// Handlers. There are two common ways to comply with this interface.
+// The first is simply to create a type with the HandleMessage
+// function:
+//
+//    type MyFooHandler struct { }
+//
+//    func (mfh MyFooHandler) HandleMessage(msg *consumer.Message) error {
+//        fmt.Printf("%+v", *msg)
+//    }
+//
+// The second approach is to cast a function to the HandlerFunc type
+// defined in this package:
+//
+//    h := handler.HandlerFunc(func(msg *consumer.Message) error {
+//        fmt.Printf("%+v", *msg)
+//    })
 package consumer
