@@ -16,7 +16,7 @@ type Handler interface {
 	// indication that the message has not been handled.  After
 	// waiting a respectable amount of time, the HandleMessage
 	// function will be called again with the same message.  This
-	// will continue until on of the following conditions is met:
+	// will continue until one of the following conditions is met:
 	//
 	// - 1. HandleMessage returns nil, instead of an error.
 	// - 2. A system administrator intervenes.
