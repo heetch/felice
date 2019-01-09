@@ -10,7 +10,7 @@ import (
 func TestHandleLogs(t *testing.T) {
 	tl := consumer.NewTestLogger(t)
 	c := &consumer.Consumer{Logger: tl.Logger}
-	c.Handle("foo", consumer.MessageConverterV1(), consumer.HandlerFunc(func(m *consumer.Message) error {
+	c.Handle("foo", consumer.MessageConverterV1(consumer.NewConfig("")), consumer.HandlerFunc(func(m *consumer.Message) error {
 		return nil
 	}))
 	tl.LogLineMatches(`Registered handler. topic="foo"`)

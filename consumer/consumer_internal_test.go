@@ -117,7 +117,7 @@ func (pc *PartitionConsumerMock) ResetOffset(offset int64, metadata string) {}
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
 	c := &Consumer{}
-	c.Handle("topic", MessageConverterV1(), &testHandler{})
+	c.Handle("topic", MessageConverterV1(NewConfig("")), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
 	require.True(t, ok)
@@ -192,7 +192,7 @@ func TestConsumerHandleMessages(t *testing.T) {
 		},
 	}
 
-	c.Handle("topic", MessageConverterV1(), handler)
+	c.Handle("topic", MessageConverterV1(NewConfig("")), handler)
 	tl.LogLineMatches(`Registered handler. topic="topic"`)
 
 	ch := make(chan *sarama.ConsumerMessage, 1)
@@ -234,7 +234,7 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	c.Metrics = mmh
 	handler := &testHandler{}
 
-	c.Handle("topic", MessageConverterV1(), handler)
+	c.Handle("topic", MessageConverterV1(NewConfig("")), handler)
 	ch := make(chan *sarama.ConsumerMessage, 1)
 	ch <- &sarama.ConsumerMessage{
 		Topic:  "topic",
@@ -268,7 +268,8 @@ func TestMessageConverterV1(t *testing.T) {
 		},
 	}
 
-	msg, err := MessageConverterV1().FromKafka(NewConfig("some-id"), &sm)
+	cfg := NewConfig("some-id")
+	msg, err := MessageConverterV1(cfg).FromKafka(&sm)
 	require.NoError(t, err)
 	require.Equal(t, sm.Topic, msg.Topic)
 	require.EqualValues(t, sm.Key, msg.Key.Bytes())
@@ -359,7 +360,7 @@ func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work! ")
 	}
-	c.Handle("foo", MessageConverterV1(), HandlerFunc(func(m *Message) error {
+	c.Handle("foo", MessageConverterV1(NewConfig("")), HandlerFunc(func(m *Message) error {
 		return nil
 	}))
 	err := c.Serve(NewConfig("some-id"), "foo")

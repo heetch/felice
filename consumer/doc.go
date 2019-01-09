@@ -17,7 +17,7 @@
 // topic, and only the final one will count.  A typical call to Handle
 // looks like this:
 //
-//    c.Handle("testmsg", consumer.MessageConverterV1(), HandlerFunc(func(m *consumer.Message) error {
+//    c.Handle("testmsg", consumer.MessageConverterV1(cfg), HandlerFunc(func(m *consumer.Message) error {
 //        // Do something of your choice here!
 //        return nil // .. or return an actual error.
 //    }))

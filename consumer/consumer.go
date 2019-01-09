@@ -182,7 +182,7 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 			// if an error occurs during an unformat call, it usually means
 			// the chosen converter was the wrong one. the consumption must block
 			// and an error must be reported.
-			m, err := h.Converter.FromKafka(*c.config, msg)
+			m, err := h.Converter.FromKafka(msg)
 			if err == nil {
 				err = h.Handler.HandleMessage(m)
 				if err == nil {
@@ -266,7 +266,7 @@ type Message struct {
 // Each converter defines the way it wants to decode metadata, headers and body from the message received from Kafka
 // and returns a format agnostic Message structure.
 type MessageConverter interface {
-	FromKafka(Config, *sarama.ConsumerMessage) (*Message, error)
+	FromKafka(*sarama.ConsumerMessage) (*Message, error)
 }
 
 // MessageConverterV1 is the first version of the default converter.
@@ -274,18 +274,20 @@ type MessageConverter interface {
 // The headers are extracted from Kafka headers and the body is decoded from JSON.
 // If the Message-Id and Produced-At headers are found, they will automatically be added to
 // the ID and ProducedAt fields.
-func MessageConverterV1() MessageConverter {
-	return new(messageConverterV1)
+func MessageConverterV1(config Config) MessageConverter {
+	return &messageConverterV1{config: config}
 }
 
-type messageConverterV1 struct{}
+type messageConverterV1 struct {
+	config Config
+}
 
 // FromKafka converts the message from Kafka headers and JSON body.
-func (f *messageConverterV1) FromKafka(config Config, cm *sarama.ConsumerMessage) (*Message, error) {
+func (f *messageConverterV1) FromKafka(cm *sarama.ConsumerMessage) (*Message, error) {
 	msg := Message{
 		Topic:      cm.Topic,
 		Headers:    make(map[string]string),
-		Key:        codec.NewDecoder(config.KeyCodec, cm.Key),
+		Key:        codec.NewDecoder(f.config.KeyCodec, cm.Key),
 		Body:       codec.JSONDecoder(cm.Value),
 		Partition:  cm.Partition,
 		Offset:     cm.Offset,
