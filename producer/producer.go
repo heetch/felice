@@ -53,6 +53,18 @@ func NewFrom(producer sarama.SyncProducer, config Config) (*Producer, error) {
 	return &Producer{SyncProducer: producer, config: config}, nil
 }
 
+// Send creates and sends a message to Kafka synchronously.
+// It returns the message.Message sent to the brokers.
+func (p *Producer) Send(ctx context.Context, topic string, body interface{}, opts ...Option) (*Message, error) {
+	msg := NewMessage(topic, body)
+	for _, opt := range opts {
+		opt(msg)
+	}
+
+	err := p.SendMessage(ctx, msg)
+	return msg, err
+}
+
 // SendMessage sends the given message to Kafka synchronously.
 func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
 	select {
