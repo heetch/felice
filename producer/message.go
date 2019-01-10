@@ -85,3 +85,24 @@ func Key(key codec.Encoder) Option {
 		m.Key = key
 	}
 }
+
+// StrKey is an Option that specifies a key for the message as a string.
+func StrKey(key string) Option {
+	return func(m *Message) {
+		m.Key = codec.StringEncoder(key)
+	}
+}
+
+// Int64Key is an Option that specifies a key for the message as an integer.
+func Int64Key(key int) Option {
+	return func(m *Message) {
+		m.Key = codec.Int64Encoder(key)
+	}
+}
+
+// Float64Key is an Option that specifies a key for the message as a float.
+func Float64Key(key float64) Option {
+	return func(m *Message) {
+		m.Key = codec.Float64Encoder(key)
+	}
+}
