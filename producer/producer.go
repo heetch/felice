@@ -2,12 +2,10 @@ package producer
 
 import (
 	"context"
-	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/heetch/felice/codec"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 )
 
 // Producer sends messages to Kafka.
@@ -55,6 +53,18 @@ func NewFrom(producer sarama.SyncProducer, config Config) (*Producer, error) {
 	return &Producer{SyncProducer: producer, config: config}, nil
 }
 
+// Send creates and sends a message to Kafka synchronously.
+// It returns the message.Message sent to the brokers.
+func (p *Producer) Send(ctx context.Context, topic string, body interface{}, opts ...Option) (*Message, error) {
+	msg := NewMessage(topic, body)
+	for _, opt := range opts {
+		opt(msg)
+	}
+
+	err := p.SendMessage(ctx, msg)
+	return msg, err
+}
+
 // SendMessage sends the given message to Kafka synchronously.
 func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
 	select {
@@ -78,57 +88,6 @@ func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
 	msg.ProducedAt = pmsg.Timestamp
 
 	return errors.Wrap(err, "producer: failed to send message")
-}
-
-// Message represents a message to be sent via Kafka.
-// Before sending it, the producer will transform this structure into a
-// sarama.ProducerMessage using the registered Converter.
-type Message struct {
-	// The Kafka topic this Message applies to.
-	Topic string
-
-	// If specified, messages with the same key will be sent to the same Kafka partition.
-	Key sarama.Encoder
-
-	// Body of the Kafka message.
-	Body interface{}
-
-	// The time at which this Message was produced.
-	ProducedAt time.Time
-
-	// Partition where this publication was stored.
-	Partition int32
-
-	// Offset where this publication was stored.
-	Offset int64
-
-	// Headers of the message.
-	Headers map[string]string
-
-	// Unique ID of the message. Defaults to an uuid.
-	ID string
-}
-
-// prepare makes sure the message contains a unique ID and
-// the Headers map memory is allocated.
-func (m *Message) prepare() {
-	if m.ID == "" {
-		m.ID = uuid.Must(uuid.NewV4()).String()
-	}
-
-	if m.Headers == nil {
-		m.Headers = make(map[string]string)
-	}
-}
-
-// NewMessage creates a configured message with a generated unique ID.
-func NewMessage(topic string, body interface{}) *Message {
-	return &Message{
-		Topic:   topic,
-		Body:    body,
-		Headers: make(map[string]string),
-		ID:      uuid.Must(uuid.NewV4()).String(),
-	}
 }
 
 // A MessageConverter transforms a Message into a sarama.ProducerMessage.

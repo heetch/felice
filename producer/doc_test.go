@@ -59,3 +59,18 @@ func ExampleNewFrom() {
 		panic(err)
 	}
 }
+
+func ExampleProducer_Send() {
+	config := producer.NewConfig("some-id", producer.MessageConverterV1())
+
+	p, err := producer.New(config, endpoints...)
+	if err != nil {
+		panic(err)
+	}
+	defer p.Close()
+
+	_, err = p.Send(context.Background(), "some topic", "some body", producer.StrKey("some key"))
+	if err != nil {
+		panic(err)
+	}
+}
