@@ -1,30 +1,33 @@
 package codec
 
-import (
-	"github.com/Shopify/sarama"
-)
+// Encoder is a simple interface for any type that can be encoded as an array of bytes
+// in order to be sent as the key or value of a Kafka message. It matches the sarama.Encoder interface.
+type Encoder interface {
+	Encode() ([]byte, error)
+	Length() int
+}
 
-// StringEncoder creates a sarama.Encoder that encodes using the String codec.
-func StringEncoder(v string) sarama.Encoder {
+// StringEncoder creates a Encoder that encodes using the String codec.
+func StringEncoder(v string) Encoder {
 	return &encoder{codec: String(), v: v}
 }
 
-// Int64Encoder creates a sarama.Encoder that encodes using the Int64 codec.
-func Int64Encoder(v int) sarama.Encoder {
+// Int64Encoder creates a Encoder that encodes using the Int64 codec.
+func Int64Encoder(v int) Encoder {
 	return &encoder{codec: Int64(), v: int64(v)}
 }
 
-// Float64Encoder creates a sarama.Encoder that encodes using the Float64 Codec.
-func Float64Encoder(v float64) sarama.Encoder {
+// Float64Encoder creates a Encoder that encodes using the Float64 Codec.
+func Float64Encoder(v float64) Encoder {
 	return &encoder{codec: Float64(), v: v}
 }
 
-// JSONEncoder creates a sarama.Encoder that encodes using the JSON Codec.
-func JSONEncoder(v interface{}) sarama.Encoder {
+// JSONEncoder creates a Encoder that encodes using the JSON Codec.
+func JSONEncoder(v interface{}) Encoder {
 	return &encoder{codec: JSON(), v: v}
 }
 
-// encoder implements the sarama.Encoder interface.
+// encoder implements the Encoder interface.
 type encoder struct {
 	codec Codec
 	v     interface{}
