@@ -11,6 +11,7 @@ import (
 	cluster "github.com/bsm/sarama-cluster"
 	"github.com/heetch/felice/codec"
 	"github.com/pkg/errors"
+	"gopkg.in/retry.v1"
 )
 
 // clusterConsumer is an interface that makes it possible to fake the cluster.Consumer for testing purposes.
@@ -37,13 +38,14 @@ type Consumer struct {
 	// the current offset).
 	Metrics MetricsReporter
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
-	Logger      *log.Logger
-	newConsumer func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
-	consumer    clusterConsumer
-	config      *Config
-	handlers    *collection
-	wg          sync.WaitGroup
-	quit        chan struct{}
+	Logger        *log.Logger
+	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
+	consumer      clusterConsumer
+	retryStrategy retry.Strategy
+	config        *Config
+	handlers      *collection
+	wg            sync.WaitGroup
+	quit          chan struct{}
 }
 
 // Handle registers the handler for the given topic.
@@ -78,6 +80,18 @@ func (c *Consumer) setup() {
 			return clusterConsumer(cons), err
 		}
 	}
+
+	if c.retryStrategy == nil {
+		// Note: the logic in handleMsg assumes that
+		// this does not terminate; be aware of that when changing
+		// this strategy.
+		c.retryStrategy = retry.Exponential{
+			Initial:  time.Millisecond,
+			Factor:   2,
+			MaxDelay: 5 * time.Second,
+			Jitter:   true,
+		}
+	}
 }
 
 // Serve runs the consumer and listens for new messages on the given
@@ -102,7 +116,8 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 		addrs,
 		consumerGroup,
 		topics,
-		&c.config.Config)
+		&c.config.Config,
+	)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
@@ -121,8 +136,7 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 		return err
 	}
 
-	err = c.handlePartitions(c.consumer.Partitions())
-	return err
+	return c.handlePartitions(c.consumer.Partitions())
 }
 
 func (c *Consumer) validateConfig() error {
@@ -138,6 +152,10 @@ func (c *Consumer) validateConfig() error {
 // Stop the consumer.
 func (c *Consumer) Stop() error {
 	close(c.quit)
+	// TODO(rog) It seems like closing the quit channel probably
+	// won't end up causing handleMessages to terminate
+	// so this Wait will probably deadlock. Perhaps the consumer should
+	// be closed first, or handleMessages could select on quit too.
 	defer c.wg.Wait()
 
 	err := c.consumer.Close()
@@ -153,14 +171,13 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 			}
 
 			c.wg.Add(1)
-			go func(pc cluster.PartitionConsumer) {
+			go func() {
 				defer c.wg.Done()
-				c.handleMessages(pc.Messages(), c.consumer, pc, pc.Topic(), pc.Partition())
-			}(part)
+				c.handleMessages(part.Messages(), c.consumer, part, part.Topic(), part.Partition())
+			}()
 		case <-c.quit:
 			c.Logger.Println("partition handler terminating")
 			return nil
-
 		}
 	}
 }
@@ -170,43 +187,59 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 	c.Logger.Println("partition messages - reading" + logSuffix)
 
 	for msg := range ch {
-		var attempts int
-
-		for {
-			attempts++
-
-			// Note: The second returned value is not checked because we will never receive messages for a topic
-			// that it does not have a handler for.
-			h, _ := c.handlers.Get(msg.Topic)
-
-			// if an error occurs during an unformat call, it usually means
-			// the chosen converter was the wrong one. the consumption must block
-			// and an error must be reported.
-			m, err := h.Converter.FromKafka(msg)
-			if err == nil {
-				err = h.Handler.HandleMessage(m)
-				if err == nil {
-					offset.MarkOffset(msg, "")
-					if c.Metrics != nil {
-						c.Metrics.Report(*m, &Metrics{
-							Attempts:        attempts,
-							RemainingOffset: max.HighWaterMarkOffset() - msg.Offset,
-						})
-					}
-					break
-				}
-			}
-
-			c.Logger.Printf("an error occured while consuming a message: %v, retrying after %s.", err, c.config.RetryInterval)
-
-			select {
-			case <-time.After(c.config.RetryInterval):
-			case <-c.quit:
-				c.Logger.Println("partition messages - closing" + logSuffix)
-				return
-			}
+		m, attempts := c.handleMsg(msg)
+		if m == nil {
+			c.Logger.Println("partition messages - closing" + logSuffix)
+			break
+		}
+		// We succeeded in sending the message.
+		offset.MarkOffset(msg, "")
+		if c.Metrics != nil {
+			c.Metrics.Report(*m, &Metrics{
+				Attempts:        attempts,
+				RemainingOffset: max.HighWaterMarkOffset() - msg.Offset,
+			})
 		}
 	}
+}
+
+// handleMsg attempts to handle the message. It retries until the
+// message can be handled OK or the consumer is stopped.
+// It returns the message that was handled and the
+// number of attempts that it took, or
+// nil if the consumer was stopped.
+func (c *Consumer) handleMsg(msg *sarama.ConsumerMessage) (*Message, int) {
+	attempts := 0
+	for a := retry.StartWithCancel(c.retryStrategy, nil, c.quit); a.Next(); {
+		if !a.More() {
+			// Note: we're assuming here that the retry
+			// strategy does not terminate except when
+			// explicitly cancelled.
+			return nil, 0
+		}
+		attempts++
+
+		// Note: The second returned value is not checked
+		// because we will never receive messages for a topic
+		// that it does not have a handler for.
+		h, _ := c.handlers.Get(msg.Topic)
+
+		// If an error occurs during an unformat call, it
+		// usually means the chosen converter was the wrong one.
+		// The consumption must block and an error must be
+		// reported.
+		m, err := h.Converter.FromKafka(msg)
+		if err != nil {
+			c.Logger.Printf("an error occured while converting a message: %v; retrying", err)
+			continue
+		}
+		if err := h.Handler.HandleMessage(m); err != nil {
+			c.Logger.Printf("an error occured while handling a message: %v; retrying", err)
+			continue
+		}
+		return m, attempts
+	}
+	panic("unreachable")
 }
 
 // MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
