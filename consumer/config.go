@@ -15,7 +15,7 @@ type Config struct {
 	// MaxRetryInterval controls the maximum length of time that
 	// the Felice consumer will wait before trying to
 	// consume a message from Kafka that failed the first time around.
-	// The default value if 1 second.
+	// The default value is 5 seconds.
 	MaxRetryInterval time.Duration
 
 	// Codec used to decode the message key. Defaults to codec.String.

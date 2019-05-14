@@ -88,7 +88,7 @@ func (c *Consumer) setup() {
 		c.retryStrategy = retry.Exponential{
 			Initial:  time.Millisecond,
 			Factor:   2,
-			MaxDelay: 5 * time.Second,
+			MaxDelay: c.config.MaxRetryInterval,
 			Jitter:   true,
 		}
 	}

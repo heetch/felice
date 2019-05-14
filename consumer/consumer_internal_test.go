@@ -116,7 +116,7 @@ func (pc *PartitionConsumerMock) ResetOffset(offset int64, metadata string) {}
 
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
-	c := &Consumer{}
+	c := &Consumer{config: newConfig()}
 	c.Handle("topic", MessageConverterV1(NewConfig("")), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
@@ -126,7 +126,7 @@ func TestHandle(t *testing.T) {
 
 // Consumer.setup initialises important values on the consumer
 func TestSetUp(t *testing.T) {
-	c := &Consumer{}
+	c := &Consumer{config: newConfig()}
 	c.setup()
 	require.NotNil(t, c.handlers)
 	require.NotNil(t, c.quit)
@@ -135,7 +135,10 @@ func TestSetUp(t *testing.T) {
 // Consumer.handlePartitions exits when we close the channel of PartitionConsumers
 func TestConsumerHandlePartitionsOnClosedChannel(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := Consumer{Logger: tl.Logger}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	ch := make(chan cluster.PartitionConsumer)
 
 	close(ch)
@@ -147,7 +150,10 @@ func TestConsumerHandlePartitionsOnClosedChannel(t *testing.T) {
 // Consumer.handlePartitions exits when we send something on the Quit channel
 func TestConsumerHandlePartitionsWithQuit(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := Consumer{Logger: tl.Logger}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	ch := make(chan cluster.PartitionConsumer)
 	c.quit = make(chan struct{}, 1)
 
@@ -161,7 +167,10 @@ func TestConsumerHandlePartitionsWithQuit(t *testing.T) {
 // PartitionConsumer, to the handleMessages function.
 func TestConsumerHandlePartitions(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := Consumer{Logger: tl.Logger}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	ch := make(chan cluster.PartitionConsumer, 1)
 
 	pcm := &PartitionConsumerMock{}
@@ -179,8 +188,10 @@ func TestConsumerHandlePartitions(t *testing.T) {
 func TestConsumerHandleMessages(t *testing.T) {
 	tl := NewTestLogger(t)
 
-	cfg := NewConfig("some-id")
-	c := Consumer{Logger: tl.Logger, config: &cfg}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	handler := &testHandler{
 		t: t,
 		testCase: func(m *Message) (string, func(t *testing.T)) {
@@ -216,8 +227,7 @@ func TestConsumerHandleMessages(t *testing.T) {
 // metadata to a metrics hook function that has been provided to
 // the consumer via the Consumer.Metrics field.
 func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
-	cfg := NewConfig("some-id")
-	c := Consumer{config: &cfg}
+	c := Consumer{config: newConfig()}
 	mmh := &metricsHook{
 		t: t,
 		testCase: func(msg Message, meta *Metrics) (string, func(t *testing.T)) {
@@ -252,9 +262,8 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 }
 
 func TestConsumerHandleMessagesRetryOnError(t *testing.T) {
-	cfg := NewConfig("some-id")
 	c := Consumer{
-		config: &cfg,
+		config: newConfig(),
 	}
 	metricsCh := make(chan *Metrics)
 	reportMetric := func(m Message, metrics *Metrics) {
@@ -331,8 +340,6 @@ func TestConsumerHandleMessagesRetryOnError(t *testing.T) {
 	select {
 	case <-handleMessagesDone:
 	case <-time.After(2 * time.Second):
-		go panic("timed out waiting for handler loop to finish")
-		select {}
 		t.Fatal("timed out waiting for handler loop to finish")
 	}
 }
@@ -354,8 +361,7 @@ func TestMessageConverterV1(t *testing.T) {
 		},
 	}
 
-	cfg := NewConfig("some-id")
-	msg, err := MessageConverterV1(cfg).FromKafka(&sm)
+	msg, err := MessageConverterV1(NewConfig("some-id")).FromKafka(&sm)
 	require.NoError(t, err)
 	require.Equal(t, sm.Topic, msg.Topic)
 	require.EqualValues(t, sm.Key, msg.Key.Bytes())
@@ -439,7 +445,10 @@ func (h *testHandler) HandleMessage(m *Message) error {
 // Serve emits logs when it cannot create a new consumer
 func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := &Consumer{Logger: tl.Logger}
+	c := &Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work! ")
 	}
@@ -455,12 +464,11 @@ func TestValidateConfig(t *testing.T) {
 	// default configuration must work with no issue and no logs should be outputted.
 	t.Run("Default config", func(t *testing.T) {
 		var buf bytes.Buffer
-		var c Consumer
-		c.Logger = log.New(&buf, "", 0)
+		c := &Consumer{
+			Logger: log.New(&buf, "", 0),
+			config: newConfig(),
+		}
 		c.setup()
-
-		cfg := NewConfig("some id")
-		c.config = &cfg
 		err := c.validateConfig()
 		require.NoError(t, err)
 		require.Zero(t, buf.Len())
@@ -470,12 +478,13 @@ func TestValidateConfig(t *testing.T) {
 	// with the correct one.
 	t.Run("Different Group mode", func(t *testing.T) {
 		var buf bytes.Buffer
-		var c Consumer
-		c.Logger = log.New(&buf, "", 0)
+		c := &Consumer{
+			Logger: log.New(&buf, "", 0),
+			config: newConfig(),
+		}
 		c.setup()
 
-		cfg := NewConfig("some id")
-		c.config = &cfg
+		c.config = newConfig()
 		c.config.Group.Mode = cluster.ConsumerModeMultiplex
 		err := c.validateConfig()
 		require.NoError(t, err)
@@ -484,8 +493,26 @@ func TestValidateConfig(t *testing.T) {
 	})
 }
 
+// Test that Consumer.Handle emits log messages
+func TestHandleLogs(t *testing.T) {
+	tl := NewTestLogger(t)
+	c := &Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
+	c.Handle("foo", MessageConverterV1(NewConfig("")), HandlerFunc(func(m *Message) error {
+		return nil
+	}))
+	tl.LogLineMatches(`Registered handler. topic="foo"`)
+}
+
 type metricsReporterFunc func(m Message, metrics *Metrics)
 
 func (f metricsReporterFunc) Report(m Message, metrics *Metrics) {
 	f(m, metrics)
+}
+
+func newConfig() *Config {
+	cfg := NewConfig("some-id")
+	return &cfg
 }
