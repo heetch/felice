@@ -12,10 +12,11 @@ import (
 type Config struct {
 	cluster.Config
 
-	// RetryInterval controls how long the Felice consumer will wait before trying to
+	// MaxRetryInterval controls the maximum length of time that
+	// the Felice consumer will wait before trying to
 	// consume a message from Kafka that failed the first time around.
-	// The default value if 1 second.
-	RetryInterval time.Duration
+	// The default value is 5 seconds.
+	MaxRetryInterval time.Duration
 
 	// Codec used to decode the message key. Defaults to codec.String.
 	KeyCodec codec.Codec
@@ -39,7 +40,7 @@ func NewConfig(clientID string) Config {
 	c.Group.Mode = cluster.ConsumerModePartitions
 
 	// Felice consumer configuration
-	c.RetryInterval = 1 * time.Second
+	c.MaxRetryInterval = 5 * time.Second
 	c.KeyCodec = codec.String() // defaults to String
 	return c
 }

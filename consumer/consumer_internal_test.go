@@ -116,7 +116,7 @@ func (pc *PartitionConsumerMock) ResetOffset(offset int64, metadata string) {}
 
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
-	c := &Consumer{}
+	c := &Consumer{config: newConfig()}
 	c.Handle("topic", MessageConverterV1(NewConfig("")), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
@@ -126,7 +126,7 @@ func TestHandle(t *testing.T) {
 
 // Consumer.setup initialises important values on the consumer
 func TestSetUp(t *testing.T) {
-	c := &Consumer{}
+	c := &Consumer{config: newConfig()}
 	c.setup()
 	require.NotNil(t, c.handlers)
 	require.NotNil(t, c.quit)
@@ -135,7 +135,10 @@ func TestSetUp(t *testing.T) {
 // Consumer.handlePartitions exits when we close the channel of PartitionConsumers
 func TestConsumerHandlePartitionsOnClosedChannel(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := Consumer{Logger: tl.Logger}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	ch := make(chan cluster.PartitionConsumer)
 
 	close(ch)
@@ -147,7 +150,10 @@ func TestConsumerHandlePartitionsOnClosedChannel(t *testing.T) {
 // Consumer.handlePartitions exits when we send something on the Quit channel
 func TestConsumerHandlePartitionsWithQuit(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := Consumer{Logger: tl.Logger}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	ch := make(chan cluster.PartitionConsumer)
 	c.quit = make(chan struct{}, 1)
 
@@ -161,7 +167,10 @@ func TestConsumerHandlePartitionsWithQuit(t *testing.T) {
 // PartitionConsumer, to the handleMessages function.
 func TestConsumerHandlePartitions(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := Consumer{Logger: tl.Logger}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	ch := make(chan cluster.PartitionConsumer, 1)
 
 	pcm := &PartitionConsumerMock{}
@@ -179,8 +188,10 @@ func TestConsumerHandlePartitions(t *testing.T) {
 func TestConsumerHandleMessages(t *testing.T) {
 	tl := NewTestLogger(t)
 
-	cfg := NewConfig("some-id")
-	c := Consumer{Logger: tl.Logger, config: &cfg}
+	c := Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	handler := &testHandler{
 		t: t,
 		testCase: func(m *Message) (string, func(t *testing.T)) {
@@ -216,8 +227,7 @@ func TestConsumerHandleMessages(t *testing.T) {
 // metadata to a metrics hook function that has been provided to
 // the consumer via the Consumer.Metrics field.
 func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
-	cfg := NewConfig("some-id")
-	c := Consumer{config: &cfg}
+	c := Consumer{config: newConfig()}
 	mmh := &metricsHook{
 		t: t,
 		testCase: func(msg Message, meta *Metrics) (string, func(t *testing.T)) {
@@ -251,6 +261,89 @@ func TestConsumerHandleMessagesMetricsReporting(t *testing.T) {
 	require.Equal(t, 1, mmh.ReportCount)
 }
 
+func TestConsumerHandleMessagesRetryOnError(t *testing.T) {
+	c := Consumer{
+		config: newConfig(),
+	}
+	metricsCh := make(chan *Metrics)
+	reportMetric := func(m Message, metrics *Metrics) {
+		metricsCh <- metrics
+	}
+	c.Metrics = metricsReporterFunc(reportMetric)
+
+	type msgHandleReq struct {
+		m     *Message
+		reply chan error
+	}
+	msgHandleCh := make(chan msgHandleReq)
+	handle := func(m *Message) error {
+		reply := make(chan error)
+		msgHandleCh <- msgHandleReq{m, reply}
+		return <-reply
+	}
+	c.Handle("topic", MessageConverterV1(NewConfig("")), HandlerFunc(handle))
+
+	msgCh := make(chan *sarama.ConsumerMessage, 1)
+	handleMessagesDone := make(chan struct{})
+	go func() {
+		defer close(handleMessagesDone)
+		c.handleMessages(
+			msgCh,
+			&mockOffsetStash{},
+			&mockHighWaterMarker{HighWaterMarkOffsetCount: 1},
+			"topic",
+			1,
+		)
+	}()
+
+	// Send a message to the channel; we should exponentially
+	// backoff until the message is handled OK. As the backoff is jittered
+	// (and controlled by the specific retry strategy chosen) we don't
+	// check the specific delays.
+	msgCh <- &sarama.ConsumerMessage{
+		Topic:  "topic",
+		Key:    []byte("key"),
+		Value:  []byte(`"body0"`),
+		Offset: 1,
+	}
+	for i := 0; i < 5; i++ {
+		select {
+		case req := <-msgHandleCh:
+			require.Equal(t, []byte("key"), req.m.Key.Bytes())
+			require.Equal(t, []byte(`"body0"`), req.m.Body.Bytes())
+			req.reply <- fmt.Errorf("some error")
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for handle request")
+		}
+	}
+	// Allow the handler to succeed.
+	select {
+	case req := <-msgHandleCh:
+		require.Equal(t, []byte("key"), req.m.Key.Bytes())
+		require.Equal(t, []byte(`"body0"`), req.m.Body.Bytes())
+		req.reply <- nil
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for handle request")
+	}
+
+	// We should receive a metrics report that
+	// the message was sent correctly.
+	select {
+	case m := <-metricsCh:
+		require.Equal(t, m.Attempts, 6)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for handle request")
+	}
+
+	// When the channel is closed, the handler should terminate.
+	close(msgCh)
+	select {
+	case <-handleMessagesDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for handler loop to finish")
+	}
+}
+
 // Consumer.convertMessage converts a sarama.ConsumerMessage into our
 // own Message type.
 func TestMessageConverterV1(t *testing.T) {
@@ -268,8 +361,7 @@ func TestMessageConverterV1(t *testing.T) {
 		},
 	}
 
-	cfg := NewConfig("some-id")
-	msg, err := MessageConverterV1(cfg).FromKafka(&sm)
+	msg, err := MessageConverterV1(NewConfig("some-id")).FromKafka(&sm)
 	require.NoError(t, err)
 	require.Equal(t, sm.Topic, msg.Topic)
 	require.EqualValues(t, sm.Key, msg.Key.Bytes())
@@ -329,11 +421,8 @@ func (mmh *metricsHook) Report(msg Message, metadatas *Metrics) {
 // passed to HandleMessage.
 type testHandler struct {
 	t *testing.T
-	// A testCase is a function that returns a name to be passed
-	// as the first parameter of testing.T.Run and Curryed
-	// function that forms a closure over the Message
-	// provided and can then be passed as the 2nd parameter of
-	// testing.T.Run.
+	// testCase optionally holds a function that, given a message,
+	// returns a test name and a function to run the test.
 	testCase  func(*Message) (string, func(t *testing.T))
 	CallCount int
 }
@@ -356,7 +445,10 @@ func (h *testHandler) HandleMessage(m *Message) error {
 // Serve emits logs when it cannot create a new consumer
 func TestServeLogsErrorFromNewConsumer(t *testing.T) {
 	tl := NewTestLogger(t)
-	c := &Consumer{Logger: tl.Logger}
+	c := &Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
 	c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
 		return nil, fmt.Errorf("oh noes! it doesn't work! ")
 	}
@@ -372,12 +464,11 @@ func TestValidateConfig(t *testing.T) {
 	// default configuration must work with no issue and no logs should be outputted.
 	t.Run("Default config", func(t *testing.T) {
 		var buf bytes.Buffer
-		var c Consumer
-		c.Logger = log.New(&buf, "", 0)
+		c := &Consumer{
+			Logger: log.New(&buf, "", 0),
+			config: newConfig(),
+		}
 		c.setup()
-
-		cfg := NewConfig("some id")
-		c.config = &cfg
 		err := c.validateConfig()
 		require.NoError(t, err)
 		require.Zero(t, buf.Len())
@@ -387,16 +478,41 @@ func TestValidateConfig(t *testing.T) {
 	// with the correct one.
 	t.Run("Different Group mode", func(t *testing.T) {
 		var buf bytes.Buffer
-		var c Consumer
-		c.Logger = log.New(&buf, "", 0)
+		c := &Consumer{
+			Logger: log.New(&buf, "", 0),
+			config: newConfig(),
+		}
 		c.setup()
 
-		cfg := NewConfig("some id")
-		c.config = &cfg
+		c.config = newConfig()
 		c.config.Group.Mode = cluster.ConsumerModeMultiplex
 		err := c.validateConfig()
 		require.NoError(t, err)
 		require.NotZero(t, buf.Len())
 		require.Equal(t, cluster.ConsumerModePartitions, c.config.Group.Mode)
 	})
+}
+
+// Test that Consumer.Handle emits log messages
+func TestHandleLogs(t *testing.T) {
+	tl := NewTestLogger(t)
+	c := &Consumer{
+		config: newConfig(),
+		Logger: tl.Logger,
+	}
+	c.Handle("foo", MessageConverterV1(NewConfig("")), HandlerFunc(func(m *Message) error {
+		return nil
+	}))
+	tl.LogLineMatches(`Registered handler. topic="foo"`)
+}
+
+type metricsReporterFunc func(m Message, metrics *Metrics)
+
+func (f metricsReporterFunc) Report(m Message, metrics *Metrics) {
+	f(m, metrics)
+}
+
+func newConfig() *Config {
+	cfg := NewConfig("some-id")
+	return &cfg
 }
