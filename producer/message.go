@@ -5,8 +5,10 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/heetch/felice/codec"
-	uuid "github.com/satori/go.uuid"
+	"github.com/rogpeppe/fastuuid"
 )
+
+var uuids = fastuuid.MustNewGenerator()
 
 // Message represents a message to be sent via Kafka.
 // Before sending it, the producer will transform this structure into a
@@ -41,7 +43,7 @@ type Message struct {
 // the Headers map memory is allocated.
 func (m *Message) prepare() {
 	if m.ID == "" {
-		m.ID = uuid.Must(uuid.NewV4()).String()
+		m.ID = uuids.Hex128()
 	}
 
 	if m.Headers == nil {
@@ -55,7 +57,7 @@ func NewMessage(topic string, body interface{}) *Message {
 		Topic:   topic,
 		Body:    body,
 		Headers: make(map[string]string),
-		ID:      uuid.Must(uuid.NewV4()).String(),
+		ID:      uuids.Hex128(),
 	}
 }
 

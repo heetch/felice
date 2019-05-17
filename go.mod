@@ -17,7 +17,8 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165 // indirect
-	github.com/satori/go.uuid v0.0.0-20180103174451-36e9d2ebbde5
+	github.com/rogpeppe/fastuuid v1.1.0
 	github.com/stretchr/testify v1.2.2
-	gopkg.in/retry.v1 v1.0.2
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	gopkg.in/retry.v1 v1.0.3
 )
