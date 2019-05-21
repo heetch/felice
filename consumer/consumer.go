@@ -183,7 +183,7 @@ func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
 }
 
 func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker, topic string, partition int32) {
-	logSuffix := fmt.Sprintf(", topic=%q, partition=%d\n", topic, partition)
+	logSuffix := fmt.Sprintf(", topic=%q, partition=%d", topic, partition)
 	c.Logger.Println("partition messages - reading" + logSuffix)
 
 	for msg := range ch {
