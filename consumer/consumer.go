@@ -81,7 +81,7 @@ func (c *Consumer) setup() {
 		}
 	}
 
-	if c.retryStrategy == nil {
+	if c.config != nil && c.retryStrategy == nil {
 		// Note: the logic in handleMsg assumes that
 		// this does not terminate; be aware of that when changing
 		// this strategy.
@@ -101,13 +101,13 @@ func (c *Consumer) setup() {
 // When Serve terminates it will return an Error or nil to indicate
 // that it excited without error.
 func (c *Consumer) Serve(config Config, addrs ...string) error {
-	c.setup()
-
 	c.config = &config
 	err := c.validateConfig()
 	if err != nil {
 		return err
 	}
+
+	c.setup()
 
 	topics := c.handlers.Topics()
 
