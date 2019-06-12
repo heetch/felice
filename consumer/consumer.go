@@ -239,7 +239,8 @@ func (c *Consumer) handleMsg(msg *sarama.ConsumerMessage) (*Message, int) {
 		}
 		return m, attempts
 	}
-	panic("unreachable")
+	return nil, attempts
+
 }
 
 // MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
