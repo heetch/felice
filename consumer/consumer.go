@@ -32,7 +32,6 @@ type Consumer struct {
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
 	Logger *log.Logger
 
-	newConsumer   func(addrs []string, groupID string, topics []string, config *sarama.Config) (sarama.ConsumerGroup, error)
 	consumer      sarama.ConsumerGroup
 	retryStrategy retry.Strategy
 	config        *Config
@@ -66,12 +65,6 @@ func (c *Consumer) setup() {
 		c.quit = make(chan struct{})
 	}
 
-	if c.newConsumer == nil {
-		c.newConsumer = func(addrs []string, groupID string, topics []string, config *sarama.Config) (sarama.ConsumerGroup, error) {
-			return sarama.NewConsumerGroup(addrs, groupID, config)
-		}
-	}
-
 	if c.config != nil && c.retryStrategy == nil {
 		// Note: the logic in handleMsg assumes that
 		// this does not terminate; be aware of that when changing
@@ -100,15 +93,8 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 
 	c.setup()
 
-	topics := c.handlers.Topics()
-
-	consumerGroup := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
-	c.consumer, err = c.newConsumer(
-		addrs,
-		consumerGroup,
-		topics,
-		c.config.Config,
-	)
+	groupID := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
+	c.consumer, err = sarama.NewConsumerGroup(addrs, groupID, c.config.Config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
@@ -123,7 +109,7 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 			// annoying little issue.
 			err = errors.Wrap(err, "__consumer_offsets topic doesn't yet exist, either because no client has yet requested an offset, or because this consumer group is not yet functioning at startup or after rebalancing.")
 		}
-		err = errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
+		err = errors.Wrap(err, fmt.Sprintf("failed to create consumer group %q", groupID))
 		return err
 	}
 
@@ -131,11 +117,13 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 		consumer: c,
 	}
 
-	err = c.consumer.Consume(context.Background(), topics, cgh)
+	err = c.consumer.Consume(context.Background(), c.handlers.Topics(), cgh)
 	c.Logger.Println("consumer closing")
 	return err
 }
 
+// consumerGroupHandler implements sarama.ConsumerGroupHandler interface.
+// ConsumeClaim will be run in a separate go routine for each topics/partitions.
 type consumerGroupHandler struct {
 	consumer *Consumer
 }

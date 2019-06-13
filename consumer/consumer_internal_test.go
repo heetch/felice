@@ -238,25 +238,6 @@ func TestMessageConverterV1(t *testing.T) {
 	require.Equal(t, "v", msg.Headers["k"])
 }
 
-// Serve emits logs when it cannot create a new consumer
-func TestServeLogsErrorFromNewConsumer(t *testing.T) {
-	tl := NewTestLogger(t)
-	c := &Consumer{
-		config: newConfig(),
-		Logger: tl.Logger,
-	}
-	c.newConsumer = func(addrs []string, groupID string, topics []string, config *sarama.Config) (sarama.ConsumerGroup, error) {
-		return nil, fmt.Errorf("oh noes! it doesn't work! ")
-	}
-	c.Handle("foo", MessageConverterV1(NewConfig("")), HandlerFunc(func(m *Message) error {
-		return nil
-	}))
-	err := c.Serve(NewConfig("some-id"), "foo")
-	fmt.Println(tl.buf.String())
-	fmt.Println(err)
-	require.Error(t, err)
-}
-
 // Test that Consumer.Handle emits log messages
 func TestHandleLogs(t *testing.T) {
 	tl := NewTestLogger(t)
