@@ -83,7 +83,7 @@ func (c *Consumer) setup() {
 // of one or more Kafka brokers.  Serve will block until it is
 // instructed to stop, which you can achieve by calling Consumer.Stop.
 // When Serve terminates it will return an Error or nil to indicate
-// that it excited without error.
+// that it exited without error.
 func (c *Consumer) Serve(config Config, addrs ...string) error {
 	c.config = &config
 	err := c.config.Validate()
