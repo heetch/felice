@@ -146,8 +146,8 @@ func (h *testHandler) HandleMessage(m *Message) error {
 	return nil
 }
 
-// metricsReportFunc implements the MetricsReporter interface.
-// It allows to provided a custom implementation of Report.
+// metricsReportFunc implements the MetricsReporter interface
+// by calling the underlying function.
 type metricsReporterFunc func(m Message, metrics *Metrics)
 
 func (f metricsReporterFunc) Report(m Message, metrics *Metrics) {
