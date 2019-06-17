@@ -123,7 +123,7 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 }
 
 // consumerGroupHandler implements sarama.ConsumerGroupHandler interface.
-// ConsumeClaim will be run in a separate go routine for each topics/partitions.
+// ConsumeClaim will be run in a separate goroutine for each topic/partition.
 type consumerGroupHandler struct {
 	consumer *Consumer
 }
