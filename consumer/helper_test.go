@@ -27,15 +27,15 @@ func (c consumerGroupClaim) Topic() string {
 }
 
 func (consumerGroupClaim) Partition() int32 {
-	return int32(0)
+	return 0
 }
 
 func (consumerGroupClaim) InitialOffset() int64 {
-	return int64(0)
+	return 0
 }
 
 func (consumerGroupClaim) HighWaterMarkOffset() int64 {
-	return int64(1)
+	return 1
 }
 
 func (c consumerGroupClaim) Messages() <-chan *sarama.ConsumerMessage {
@@ -54,7 +54,7 @@ func (consumerGroupSession) MemberID() string {
 }
 
 func (consumerGroupSession) GenerationID() int32 {
-	return int32(0)
+	return 0
 }
 
 func (consumerGroupSession) MarkOffset(topic string, partition int32, offset int64, metadata string) {
