@@ -4,13 +4,12 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	cluster "github.com/bsm/sarama-cluster"
 	"github.com/heetch/felice/codec"
 )
 
 // Config is used to configure the Consumer.
 type Config struct {
-	cluster.Config
+	*sarama.Config
 
 	// MaxRetryInterval controls the maximum length of time that
 	// the Felice consumer will wait before trying to
@@ -28,16 +27,14 @@ type Config struct {
 func NewConfig(clientID string) Config {
 	var c Config
 
-	// Sarama Cluster configuration
-	c.Config = *cluster.NewConfig()
+	c.Config = sarama.NewConfig()
 	c.ClientID = clientID
 	c.Consumer.Return.Errors = true
 	// Specify that we are using at least Kafka v1.0
 	c.Version = sarama.V1_0_0_0
+
 	// Distribute load across instances using round robin strategy
-	c.Group.PartitionStrategy = cluster.StrategyRoundRobin
-	// One chan per partition instead of default multiplexing behaviour.
-	c.Group.Mode = cluster.ConsumerModePartitions
+	c.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 
 	// Felice consumer configuration
 	c.MaxRetryInterval = 5 * time.Second

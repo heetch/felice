@@ -1,25 +1,17 @@
 package consumer
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
-	cluster "github.com/bsm/sarama-cluster"
 	"github.com/heetch/felice/codec"
 	"github.com/pkg/errors"
 	"gopkg.in/retry.v1"
 )
-
-// clusterConsumer is an interface that makes it possible to fake the cluster.Consumer for testing purposes.
-type clusterConsumer interface {
-	MarkOffset(*sarama.ConsumerMessage, string)
-	Partitions() <-chan cluster.PartitionConsumer
-	Close() error
-}
 
 // Consumer is the structure used to consume messages from Kafka.
 // Having constructed a Consumer you should use its Handle method to
@@ -38,13 +30,12 @@ type Consumer struct {
 	// the current offset).
 	Metrics MetricsReporter
 	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
-	Logger        *log.Logger
-	newConsumer   func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error)
-	consumer      clusterConsumer
+	Logger *log.Logger
+
+	consumer      sarama.ConsumerGroup
 	retryStrategy retry.Strategy
 	config        *Config
 	handlers      *collection
-	wg            sync.WaitGroup
 	quit          chan struct{}
 }
 
@@ -74,13 +65,6 @@ func (c *Consumer) setup() {
 		c.quit = make(chan struct{})
 	}
 
-	if c.newConsumer == nil {
-		c.newConsumer = func(addrs []string, groupID string, topics []string, config *cluster.Config) (clusterConsumer, error) {
-			cons, err := cluster.NewConsumer(addrs, groupID, topics, config)
-			return clusterConsumer(cons), err
-		}
-	}
-
 	if c.config != nil && c.retryStrategy == nil {
 		// Note: the logic in handleMsg assumes that
 		// this does not terminate; be aware of that when changing
@@ -99,25 +83,18 @@ func (c *Consumer) setup() {
 // of one or more Kafka brokers.  Serve will block until it is
 // instructed to stop, which you can achieve by calling Consumer.Stop.
 // When Serve terminates it will return an Error or nil to indicate
-// that it excited without error.
+// that it exited without error.
 func (c *Consumer) Serve(config Config, addrs ...string) error {
 	c.config = &config
-	err := c.validateConfig()
+	err := c.config.Validate()
 	if err != nil {
 		return err
 	}
 
 	c.setup()
 
-	topics := c.handlers.Topics()
-
-	consumerGroup := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
-	c.consumer, err = c.newConsumer(
-		addrs,
-		consumerGroup,
-		topics,
-		&c.config.Config,
-	)
+	groupID := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
+	c.consumer, err = sarama.NewConsumerGroup(addrs, groupID, c.config.Config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
@@ -132,18 +109,47 @@ func (c *Consumer) Serve(config Config, addrs ...string) error {
 			// annoying little issue.
 			err = errors.Wrap(err, "__consumer_offsets topic doesn't yet exist, either because no client has yet requested an offset, or because this consumer group is not yet functioning at startup or after rebalancing.")
 		}
-		err = errors.Wrap(err, fmt.Sprintf("failed to create a consumer for topics %+v in consumer group %q", topics, consumerGroup))
+		err = errors.Wrap(err, fmt.Sprintf("failed to create consumer group %q", groupID))
 		return err
 	}
 
-	return c.handlePartitions(c.consumer.Partitions())
+	cgh := consumerGroupHandler{
+		consumer: c,
+	}
+
+	err = c.consumer.Consume(context.Background(), c.handlers.Topics(), cgh)
+	c.Logger.Println("consumer closing")
+	return err
 }
 
-func (c *Consumer) validateConfig() error {
-	// Always make sure we are using the right group mode: One chan per partition instead of default multiplexing behaviour.
-	if c.config.Group.Mode != cluster.ConsumerModePartitions {
-		c.Logger.Println("warning: config.Group.Mode cannot be changed. Value replaced by cluster.ConsumerModePartitions.")
-		c.config.Group.Mode = cluster.ConsumerModePartitions
+// consumerGroupHandler implements sarama.ConsumerGroupHandler interface.
+// ConsumeClaim will be run in a separate goroutine for each topic/partition.
+type consumerGroupHandler struct {
+	consumer *Consumer
+}
+
+func (consumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
+func (consumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+
+func (c consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	logSuffix := fmt.Sprintf(", topic=%q, partition=%d", claim.Topic(), claim.Partition())
+	c.consumer.Logger.Println("partition reading" + logSuffix)
+
+	h, _ := c.consumer.handlers.Get(claim.Topic())
+
+	for msg := range claim.Messages() {
+		m, attempts := c.handleMsg(msg, h)
+		if m == nil {
+			break
+		}
+		// We succeeded in sending the message.
+		sess.MarkMessage(msg, "")
+		if c.consumer.Metrics != nil {
+			c.consumer.Metrics.Report(*m, &Metrics{
+				Attempts:        attempts,
+				RemainingOffset: claim.HighWaterMarkOffset() - msg.Offset,
+			})
+		}
 	}
 
 	return nil
@@ -152,55 +158,9 @@ func (c *Consumer) validateConfig() error {
 // Stop the consumer.
 func (c *Consumer) Stop() error {
 	close(c.quit)
-	// TODO(rog) It seems like closing the quit channel probably
-	// won't end up causing handleMessages to terminate
-	// so this Wait will probably deadlock. Perhaps the consumer should
-	// be closed first, or handleMessages could select on quit too.
-	defer c.wg.Wait()
 
 	err := c.consumer.Close()
 	return errors.Wrap(err, "failed to close the consumer properly")
-}
-
-func (c *Consumer) handlePartitions(ch <-chan cluster.PartitionConsumer) error {
-	for {
-		select {
-		case part, ok := <-ch:
-			if !ok {
-				return fmt.Errorf("partition consumer channel closed")
-			}
-
-			c.wg.Add(1)
-			go func() {
-				defer c.wg.Done()
-				c.handleMessages(part.Messages(), c.consumer, part, part.Topic(), part.Partition())
-			}()
-		case <-c.quit:
-			c.Logger.Println("partition handler terminating")
-			return nil
-		}
-	}
-}
-
-func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offsetStash, max highWaterMarker, topic string, partition int32) {
-	logSuffix := fmt.Sprintf(", topic=%q, partition=%d", topic, partition)
-	c.Logger.Println("partition messages - reading" + logSuffix)
-
-	for msg := range ch {
-		m, attempts := c.handleMsg(msg)
-		if m == nil {
-			c.Logger.Println("partition messages - closing" + logSuffix)
-			break
-		}
-		// We succeeded in sending the message.
-		offset.MarkOffset(msg, "")
-		if c.Metrics != nil {
-			c.Metrics.Report(*m, &Metrics{
-				Attempts:        attempts,
-				RemainingOffset: max.HighWaterMarkOffset() - msg.Offset,
-			})
-		}
-	}
 }
 
 // handleMsg attempts to handle the message. It retries until the
@@ -208,9 +168,9 @@ func (c *Consumer) handleMessages(ch <-chan *sarama.ConsumerMessage, offset offs
 // It returns the message that was handled and the
 // number of attempts that it took, or
 // nil if the consumer was stopped.
-func (c *Consumer) handleMsg(msg *sarama.ConsumerMessage) (*Message, int) {
+func (c consumerGroupHandler) handleMsg(msg *sarama.ConsumerMessage, h HandlerConfig) (*Message, int) {
 	attempts := 0
-	for a := retry.StartWithCancel(c.retryStrategy, nil, c.quit); a.Next(); {
+	for a := retry.StartWithCancel(c.consumer.retryStrategy, nil, c.consumer.quit); a.Next(); {
 		if !a.More() {
 			// Note: we're assuming here that the retry
 			// strategy does not terminate except when
@@ -219,28 +179,22 @@ func (c *Consumer) handleMsg(msg *sarama.ConsumerMessage) (*Message, int) {
 		}
 		attempts++
 
-		// Note: The second returned value is not checked
-		// because we will never receive messages for a topic
-		// that it does not have a handler for.
-		h, _ := c.handlers.Get(msg.Topic)
-
 		// If an error occurs during an unformat call, it
 		// usually means the chosen converter was the wrong one.
 		// The consumption must block and an error must be
 		// reported.
 		m, err := h.Converter.FromKafka(msg)
 		if err != nil {
-			c.Logger.Printf("an error occured while converting a message: %v; retrying", err)
+			c.consumer.Logger.Printf("an error occured while converting a message: %v; retrying", err)
 			continue
 		}
 		if err := h.Handler.HandleMessage(m); err != nil {
-			c.Logger.Printf("an error occured while handling a message: %v; retrying", err)
+			c.consumer.Logger.Printf("an error occured while handling a message: %v; retrying", err)
 			continue
 		}
 		return m, attempts
 	}
 	return nil, attempts
-
 }
 
 // MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
@@ -255,14 +209,6 @@ type Metrics struct {
 	Attempts int
 	// Best effort information about the remaining unconsumed messages in the partition
 	RemainingOffset int64
-}
-
-type offsetStash interface {
-	MarkOffset(msg *sarama.ConsumerMessage, metadata string)
-}
-
-type highWaterMarker interface {
-	HighWaterMarkOffset() int64
 }
 
 // Message represents a message received from Kafka.
