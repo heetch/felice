@@ -6,7 +6,7 @@
 ## What is Felice?
 Felice is a nascent, opinionated Kafka library for Go, in Go.
 
-Currently you can use Felice to send and cosume messages via Kafka topics.  We intend to add more advanced features shortly.
+Currently you can use Felice to send and consume messages via Kafka topics.  We intend to add more advanced features shortly.
 
 ## Can I use Felice?
 Felice is very much a work in progress.  As of 06th Demember 2018 Felice's most basic message sending and consuming functions are ready for use, but we are not yet ready to rule out future changes to the public interfaces of the code. proceed with caution.
