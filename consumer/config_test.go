@@ -27,10 +27,6 @@ func TestConfig(t *testing.T) {
 			MaxDelay: c.MaxRetryInterval,
 			Jitter:   true,
 		}, c.retryStrategy)
-
-		require.NotNil(t, c.Logger)
-
-		require.Equal(t, "[Felice] ", c.Logger.Prefix())
 	})
 
 	t.Run("With broker addrs", func(t *testing.T) {

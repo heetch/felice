@@ -1,20 +1,12 @@
 package consumer
 
 import (
-	"io/ioutil"
-	"log"
 	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/heetch/felice/codec"
 	"gopkg.in/retry.v1"
 )
-
-// MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
-// from the consumer as it handles messages.
-type MetricsReporter interface {
-	Report(Message, *Metrics)
-}
 
 // Config is used to configure the Consumer.
 type Config struct {
@@ -25,25 +17,13 @@ type Config struct {
 	// Default to localhost:9092.
 	KafkaAddrs []string
 
-	// Metrics stores a type that implements the MetricsReporter interface.
-	// If you provide an implementation, then its Report function will be called every time
-	// a message is successfully handled.  The Report function will
-	// receive a copy of the message that was handled, along with
-	// a map[string]string containing metrics about the handling of the
-	// message.  Currently we pass the following metrics: "attempts" (the
-	// number of attempts it took before the message was handled);
-	// "msgOffset" (the marked offset for the message on the topic); and
-	// "remainingOffset" (the difference between the high water mark and
-	// the current offset).
-	Metrics MetricsReporter
-	// If you wish to provide a different value for the Logger, you must do this prior to calling Consumer.Serve.
-	Logger *log.Logger
 	// MaxRetryInterval controls the maximum length of time that
 	// the Felice consumer will wait before trying to
 	// consume a message from Kafka that failed the first time around.
 	// Default to 5 seconds.
 	MaxRetryInterval time.Duration
-	// Codec used to decode the message key. Defaults to codec.String.
+	// Codec used to decode the message key.
+	// Default to codec.String.
 	KeyCodec codec.Codec
 
 	retryStrategy retry.Strategy
@@ -69,8 +49,6 @@ func NewConfig(clientID string, addrs ...string) Config {
 
 	c.MaxRetryInterval = 5 * time.Second
 	c.KeyCodec = codec.String() // defaults to String
-
-	c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
 
 	// Note: the logic in handleMsg assumes that
 	// this does not terminate; be aware of that when changing
