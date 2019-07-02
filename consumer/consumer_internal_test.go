@@ -10,22 +10,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNew(t *testing.T) {
+	t.Run("OK", func(t *testing.T) {
+		c, err := New(newConfig())
+		require.NoError(t, err)
+
+		require.NotNil(t, c.Logger)
+		require.NotNil(t, c.config)
+		require.NotNil(t, c.handlers)
+		require.NotNil(t, c.quit)
+	})
+
+	t.Run("NOK - nil Config", func(t *testing.T) {
+		_, err := New(nil)
+		require.Error(t, err)
+		require.Equal(t, "configuration must be not nil", err.Error())
+	})
+}
+
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
-	c := &Consumer{config: newConfig()}
+	c, _ := New(newConfig())
 	c.Handle("topic", MessageConverterV1(NewConfig("")), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
 	require.True(t, ok)
 	require.NotNil(t, res)
-}
-
-// Consumer.setup initialises important values on the consumer
-func TestSetUp(t *testing.T) {
-	c := &Consumer{config: newConfig()}
-	c.setup()
-	require.NotNil(t, c.handlers)
-	require.NotNil(t, c.quit)
 }
 
 // ConsumerClaim calls the per-topic Handler for each message that arrives.
@@ -39,10 +49,9 @@ func TestConsumerClaim(t *testing.T) {
 		topic: topic,
 	}
 
-	c := Consumer{
-		config: newConfig(),
-		Logger: tl.Logger,
-	}
+	c, _ := New(newConfig())
+	c.Logger = tl.Logger
+
 	handler := &testHandler{
 		t: t,
 		testCase: func(m *Message) (string, func(t *testing.T)) {
@@ -65,7 +74,7 @@ func TestConsumerClaim(t *testing.T) {
 	close(claim.ch)
 
 	groupHandler := consumerGroupHandler{
-		consumer: &c,
+		consumer: c,
 	}
 	groupHandler.ConsumeClaim(sess, claim)
 
@@ -86,7 +95,6 @@ func TestConsumerClaimMetricsReporting(t *testing.T) {
 		topic: topic,
 	}
 
-	c := Consumer{config: newConfig()}
 	mmh := &metricsHook{
 		t: t,
 		testCase: func(msg Message, meta *Metrics) (string, func(t *testing.T)) {
@@ -100,7 +108,9 @@ func TestConsumerClaimMetricsReporting(t *testing.T) {
 			}
 		},
 	}
+	c, _ := New(newConfig())
 	c.Metrics = mmh
+
 	handler := &testHandler{}
 
 	c.Handle(topic, MessageConverterV1(NewConfig("")), handler)
@@ -114,7 +124,7 @@ func TestConsumerClaimMetricsReporting(t *testing.T) {
 	close(claim.ch)
 
 	groupHandler := consumerGroupHandler{
-		consumer: &c,
+		consumer: c,
 	}
 	groupHandler.ConsumeClaim(sess, claim)
 
@@ -130,13 +140,12 @@ func TestConsumerClaimRetryOnError(t *testing.T) {
 		topic: topic,
 	}
 
-	c := Consumer{
-		config: newConfig(),
-	}
 	metricsCh := make(chan *Metrics)
 	reportMetric := func(m Message, metrics *Metrics) {
 		metricsCh <- metrics
 	}
+
+	c, _ := New(newConfig())
 	c.Metrics = metricsReporterFunc(reportMetric)
 
 	type msgHandleReq struct {
@@ -154,7 +163,7 @@ func TestConsumerClaimRetryOnError(t *testing.T) {
 	handleMessagesDone := make(chan struct{})
 
 	groupHandler := consumerGroupHandler{
-		consumer: &c,
+		consumer: c,
 	}
 	go func() {
 		defer close(handleMessagesDone)
@@ -240,11 +249,11 @@ func TestMessageConverterV1(t *testing.T) {
 
 // Test that Consumer.Handle emits log messages
 func TestHandleLogs(t *testing.T) {
+	c, _ := New(newConfig())
+
 	tl := NewTestLogger(t)
-	c := &Consumer{
-		config: newConfig(),
-		Logger: tl.Logger,
-	}
+	c.Logger = tl.Logger
+
 	c.Handle("foo", MessageConverterV1(NewConfig("")), HandlerFunc(func(m *Message) error {
 		return nil
 	}))
