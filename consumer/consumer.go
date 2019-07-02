@@ -73,20 +73,14 @@ func (c *Consumer) Handle(topic string, converter MessageConverter, h Handler) {
 }
 
 // Serve runs the consumer and listens for new messages on the given
-// topics.  You must provide it with unique clientID and the address
-// of one or more Kafka brokers.  Serve will block until it is
-// instructed to stop, which you can achieve by calling Consumer.Stop.
-// When Serve terminates it will return an Error or nil to indicate
-// that it exited without error.
-func (c *Consumer) Serve(config Config, addrs ...string) error {
-	c.config = &config
-	err := c.config.Validate()
-	if err != nil {
-		return err
-	}
+// topics.
+// Serve will block until it is instructed to stop, which you can achieve by calling Consumer.Stop.
+// When Serve terminates it will return an Error or nil to indicate that it exited without error.
+func (c *Consumer) Serve() error {
+	var err error
 
 	groupID := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
-	c.consumer, err = sarama.NewConsumerGroup(addrs, groupID, c.config.Config)
+	c.consumer, err = sarama.NewConsumerGroup(c.config.KafkaAddrs, groupID, c.config.Config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError

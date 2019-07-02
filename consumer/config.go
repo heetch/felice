@@ -30,6 +30,7 @@ type Config struct {
 }
 
 // NewConfig creates a config with sane defaults.
+// Broker addresses defaults to localhost:9092.
 func NewConfig(clientID string, addrs ...string) Config {
 	var c Config
 
