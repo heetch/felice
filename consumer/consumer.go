@@ -72,8 +72,7 @@ func (c *Consumer) Handle(topic string, converter MessageConverter, h Handler) {
 	c.Logger.Printf("Registered handler. topic=%q\n", topic)
 }
 
-// Serve runs the consumer and listens for new messages on the given
-// topics.
+// Serve runs the consumer and listens for new messages on the given topics.
 // Serve will block until it is instructed to stop, which you can achieve by calling Consumer.Stop.
 // When Serve terminates it will return an Error or nil to indicate that it exited without error.
 func (c *Consumer) Serve() error {
