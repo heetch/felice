@@ -6,31 +6,22 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-
 	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
-	t.Run("OK", func(t *testing.T) {
-		c, err := New(newConfig())
-		require.NoError(t, err)
+	c, err := New(NewConfig("some-id"))
+	require.NoError(t, err)
 
-		require.NotNil(t, c.Logger)
-		require.NotNil(t, c.config)
-		require.NotNil(t, c.handlers)
-		require.NotNil(t, c.quit)
-	})
-
-	t.Run("NOK - nil Config", func(t *testing.T) {
-		_, err := New(nil)
-		require.Error(t, err)
-		require.Equal(t, "configuration must be not nil", err.Error())
-	})
+	require.NotNil(t, c.Logger)
+	require.NotNil(t, c.config)
+	require.NotNil(t, c.handlers)
+	require.NotNil(t, c.quit)
 }
 
 // Consumer.Handle registers a handler for a topic.
 func TestHandle(t *testing.T) {
-	c, _ := New(newConfig())
+	c, _ := New(NewConfig("some-id"))
 	c.Handle("topic", MessageConverterV1(NewConfig("")), &testHandler{})
 
 	res, ok := c.handlers.Get("topic")
@@ -49,7 +40,7 @@ func TestConsumerClaim(t *testing.T) {
 		topic: topic,
 	}
 
-	c, _ := New(newConfig())
+	c, _ := New(NewConfig("some-id"))
 	c.Logger = tl.Logger
 
 	handler := &testHandler{
@@ -108,7 +99,7 @@ func TestConsumerClaimMetricsReporting(t *testing.T) {
 			}
 		},
 	}
-	c, _ := New(newConfig())
+	c, _ := New(NewConfig("some-id"))
 	c.Metrics = mmh
 
 	handler := &testHandler{}
@@ -145,7 +136,7 @@ func TestConsumerClaimRetryOnError(t *testing.T) {
 		metricsCh <- metrics
 	}
 
-	c, _ := New(newConfig())
+	c, _ := New(NewConfig("some-id"))
 	c.Metrics = metricsReporterFunc(reportMetric)
 
 	type msgHandleReq struct {
@@ -249,7 +240,7 @@ func TestMessageConverterV1(t *testing.T) {
 
 // Test that Consumer.Handle emits log messages
 func TestHandleLogs(t *testing.T) {
-	c, _ := New(newConfig())
+	c, _ := New(NewConfig("some-id"))
 
 	tl := NewTestLogger(t)
 	c.Logger = tl.Logger

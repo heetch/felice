@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -62,4 +63,13 @@ func NewConfig(clientID string, addrs ...string) Config {
 	}
 
 	return c
+}
+
+// Validate validates the configuration.
+func (c Config) Validate() error {
+	if len(c.KafkaAddrs) == 0 {
+		return errors.New("felice: invalid configuration (broker addresses must not be empty)")
+	}
+
+	return c.Config.Validate()
 }

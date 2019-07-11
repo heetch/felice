@@ -41,13 +41,8 @@ type Consumer struct {
 }
 
 // New returns a ready to use Consumer configured with sane defaults.
-// The passed Config shouldn't be nil otherwise a non nil error will be returned.
-func New(cfg *Config) (*Consumer, error) {
-	if cfg == nil {
-		return nil, errors.New("configuration must be not nil")
-	}
-
-	err := cfg.Config.Validate()
+func New(cfg Config) (*Consumer, error) {
+	err := cfg.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +50,7 @@ func New(cfg *Config) (*Consumer, error) {
 	return &Consumer{
 		Logger: log.New(ioutil.Discard, "[Felice] ", log.LstdFlags),
 
-		config:   cfg,
+		config:   &cfg,
 		handlers: new(collection),
 		quit:     make(chan struct{}),
 	}, nil
