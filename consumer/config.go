@@ -15,16 +15,16 @@ type Config struct {
 
 	// KafkaAddrs holds kafka brokers addresses. There must be at least
 	// one entry in the slice.
-	// Default to localhost:9092.
+	// The default value is "localhost:9092".
 	KafkaAddrs []string
 
 	// MaxRetryInterval controls the maximum length of time that
 	// the Felice consumer will wait before trying to
 	// consume a message from Kafka that failed the first time around.
-	// Default to 5 seconds.
+	// The default value is 5 seconds.
 	MaxRetryInterval time.Duration
 	// Codec used to decode the message key.
-	// Default to codec.String.
+	// The default value is codec.String.
 	KeyCodec codec.Codec
 
 	retryStrategy retry.Strategy
@@ -45,7 +45,7 @@ func NewConfig(clientID string, addrs ...string) Config {
 
 	// Felice consumer configuration
 	c.KafkaAddrs = addrs
-	if c.KafkaAddrs == nil {
+	if len(c.KafkaAddrs) == 0 {
 		c.KafkaAddrs = []string{"localhost:9092"}
 	}
 
