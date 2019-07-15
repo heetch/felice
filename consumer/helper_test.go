@@ -11,11 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newConfig() *Config {
-	cfg := NewConfig("some-id")
-	return &cfg
-}
-
 // consumerGroupClaim implements sarama.ConsumerGroupClaim interface.
 type consumerGroupClaim struct {
 	ch    chan *sarama.ConsumerMessage

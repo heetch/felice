@@ -14,11 +14,11 @@ import (
 )
 
 // Consumer is the structure used to consume messages from Kafka.
-// Having constructed a Consumer you should use its Handle method to
+// Having constructed a Consumer with New, you should use its Handle method to
 // register per-topic handlers and, finally, call it's Serve method to
 // begin consuming messages.
 type Consumer struct {
-	// Metrics stores a type that implements the felice.MetricsReporter interface.
+	// Metrics stores a type that implements the MetricsReporter interface.
 	// If you provide an implementation, then its Report function will be called every time
 	// a message is successfully handled.  The Report function will
 	// receive a copy of the message that was handled, along with
@@ -29,21 +29,36 @@ type Consumer struct {
 	// "remainingOffset" (the difference between the high water mark and
 	// the current offset).
 	Metrics MetricsReporter
-	// If you wish to provide a different value for the Logger, you must do this prior to calling Serve.
+
+	// Logger output defaults to ioutil.Discard.
+	// If you wish to provide a different value for the Logger, you must do this prior to calling Consumer.Serve.
 	Logger *log.Logger
 
-	consumer      sarama.ConsumerGroup
-	retryStrategy retry.Strategy
-	config        *Config
-	handlers      *collection
-	quit          chan struct{}
+	consumer sarama.ConsumerGroup
+	config   *Config
+	handlers *collection
+	quit     chan struct{}
+}
+
+// New returns a ready to use Consumer configured with sane defaults.
+func New(cfg Config) (*Consumer, error) {
+	err := cfg.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Consumer{
+		Logger: log.New(ioutil.Discard, "[Felice] ", log.LstdFlags),
+
+		config:   &cfg,
+		handlers: new(collection),
+		quit:     make(chan struct{}),
+	}, nil
 }
 
 // Handle registers the handler for the given topic.
 // Handle must be called before Serve.
 func (c *Consumer) Handle(topic string, converter MessageConverter, h Handler) {
-	c.setup()
-
 	c.handlers.Set(topic, HandlerConfig{
 		Handler:   h,
 		Converter: converter,
@@ -52,49 +67,14 @@ func (c *Consumer) Handle(topic string, converter MessageConverter, h Handler) {
 	c.Logger.Printf("Registered handler. topic=%q\n", topic)
 }
 
-func (c *Consumer) setup() {
-	if c.Logger == nil {
-		c.Logger = log.New(ioutil.Discard, "[Felice] ", log.LstdFlags)
-	}
-
-	if c.handlers == nil {
-		c.handlers = new(collection)
-	}
-
-	if c.quit == nil {
-		c.quit = make(chan struct{})
-	}
-
-	if c.config != nil && c.retryStrategy == nil {
-		// Note: the logic in handleMsg assumes that
-		// this does not terminate; be aware of that when changing
-		// this strategy.
-		c.retryStrategy = retry.Exponential{
-			Initial:  time.Millisecond,
-			Factor:   2,
-			MaxDelay: c.config.MaxRetryInterval,
-			Jitter:   true,
-		}
-	}
-}
-
-// Serve runs the consumer and listens for new messages on the given
-// topics.  You must provide it with unique clientID and the address
-// of one or more Kafka brokers.  Serve will block until it is
-// instructed to stop, which you can achieve by calling Consumer.Stop.
-// When Serve terminates it will return an Error or nil to indicate
-// that it exited without error.
-func (c *Consumer) Serve(config Config, addrs ...string) error {
-	c.config = &config
-	err := c.config.Validate()
-	if err != nil {
-		return err
-	}
-
-	c.setup()
+// Serve runs the consumer and listens for new messages on the given topics.
+// Serve will block until it is instructed to stop, which you can achieve by calling Consumer.Stop.
+// When Serve terminates it will return an Error or nil to indicate that it exited without error.
+func (c *Consumer) Serve() error {
+	var err error
 
 	groupID := fmt.Sprintf("%s-consumer-group", c.config.ClientID)
-	c.consumer, err = sarama.NewConsumerGroup(addrs, groupID, c.config.Config)
+	c.consumer, err = sarama.NewConsumerGroup(c.config.KafkaAddrs, groupID, c.config.Config)
 	if err != nil {
 		// Note: this kind of error comparison is weird, but
 		// it's possible because sarama defines the KError
@@ -166,11 +146,10 @@ func (c *Consumer) Stop() error {
 // handleMsg attempts to handle the message. It retries until the
 // message can be handled OK or the consumer is stopped.
 // It returns the message that was handled and the
-// number of attempts that it took, or
-// nil if the consumer was stopped.
+// number of attempts that it took, or nil if the consumer was stopped.
 func (c consumerGroupHandler) handleMsg(msg *sarama.ConsumerMessage, h HandlerConfig) (*Message, int) {
 	attempts := 0
-	for a := retry.StartWithCancel(c.consumer.retryStrategy, nil, c.consumer.quit); a.Next(); {
+	for a := retry.StartWithCancel(c.consumer.config.retryStrategy, nil, c.consumer.quit); a.Next(); {
 		if !a.More() {
 			// Note: we're assuming here that the retry
 			// strategy does not terminate except when
@@ -195,20 +174,6 @@ func (c consumerGroupHandler) handleMsg(msg *sarama.ConsumerMessage, h HandlerCo
 		return m, attempts
 	}
 	return nil, attempts
-}
-
-// MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
-// from the consumer as it handles messages.
-type MetricsReporter interface {
-	Report(Message, *Metrics)
-}
-
-// Metrics contains information about message consumption for a given partition.
-type Metrics struct {
-	// Number of times the consumer tried to consume this message.
-	Attempts int
-	// Best effort information about the remaining unconsumed messages in the partition
-	RemainingOffset int64
 }
 
 // Message represents a message received from Kafka.
@@ -281,4 +246,18 @@ func (f *messageConverterV1) FromKafka(cm *sarama.ConsumerMessage) (*Message, er
 	msg.ID = msg.Headers["Message-Id"]
 
 	return &msg, nil
+}
+
+// MetricsReporter is an interface that can be passed to set metrics hook to receive metrics
+// from the consumer as it handles messages.
+type MetricsReporter interface {
+	Report(Message, *Metrics)
+}
+
+// Metrics contains information about message consumption for a given partition.
+type Metrics struct {
+	// Number of times the consumer tried to consume this message.
+	Attempts int
+	// Best effort information about the remaining unconsumed messages in the partition.
+	RemainingOffset int64
 }

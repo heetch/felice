@@ -1,12 +1,12 @@
 // Package consumer is Felice's primary entrance point for receiving messages
 // from a Kafka cluster.
 //
-// There is no special construction function for the Consumer
-// structure as all of its public members are optional, and we shall
-// discuss them below.  Thus you construct a Consumer by the normal Go
-// means:
+// The best way to create a Consumer is using the New function.
+// You have to pass a non nil Config otherwise New will return an error.
 //
-//    var c consumer.Consumer
+// Note: NewConfig returns a Config with sane defaults.
+//
+//    c, _ = New(NewConfig("client-id"))
 //
 // Once you've constructed a consumer you must add message handlers to
 // it.  This is done by calling the Consumer.Handle method.  Each time
@@ -22,11 +22,9 @@
 //        return nil // .. or return an actual error.
 //    }))
 //
-// Once you've registered all your handlers you may call
-// Consumer.Serve. Serve requires a configuration and a slice of strings,
-// each of which is the address of a Kafka broker to attempt to
-// communicate with. Serve will start a go routine for each partition
-// to consume messages and pass them to their per-topic
+// Once you've registered all your handlers you may call Consumer.Serve.
+//
+// Serve will start consuming messages and pass them to their per-topic
 // handlers. Serve itself will block until Consumer.Stop is called.
 // When Serve terminates it will return an error, which will be nil
 // under normal circumstances.
