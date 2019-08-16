@@ -2,67 +2,53 @@ package consumer
 
 import (
 	"errors"
-	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/heetch/felice/codec"
-	"gopkg.in/retry.v1"
 )
 
 // Config is used to configure the Consumer.
+// It should be created with NewConfig before any custom
+// configuration settings are applied.
 type Config struct {
+	// Config holds the configuration used to create the consumer
+	// group instance. It must be non-nil.
 	*sarama.Config
 
-	// KafkaAddrs holds kafka brokers addresses. There must be at least
-	// one entry in the slice.
-	// The default value is "localhost:9092".
+	// KafkaAddrs holds the kafka broker addresses in host:port
+	// format. There must be at least one entry in the slice.
 	KafkaAddrs []string
 
-	// MaxRetryInterval controls the maximum length of time that
-	// the Felice consumer will wait before trying to
-	// consume a message from Kafka that failed the first time around.
-	// The default value is 5 seconds.
-	MaxRetryInterval time.Duration
-	// Codec used to decode the message key.
-	// The default value is codec.String.
-	KeyCodec codec.Codec
-
-	retryStrategy retry.Strategy
+	// If non-nil, Discarded is called when a message handler
+	// returns an error.
+	Discarded func(m *sarama.ConsumerMessage, err error)
 }
 
-// NewConfig creates a config with sane defaults.
-// Broker addresses defaults to localhost:9092.
+// NewConfig returns a configuration filled in with default values.
+//
+// If addrs is empty, KafkaAddrs will default to localhost:9092.
+//
+// The clientID is used to form the consumer group name
+// (clientID + "-consumer-group").
 func NewConfig(clientID string, addrs ...string) Config {
-	var c Config
-
-	c.Config = sarama.NewConfig()
+	c := sarama.NewConfig()
 	c.ClientID = clientID
-	c.Consumer.Return.Errors = true
+
 	// Specify that we are using at least Kafka v1.0
 	c.Version = sarama.V1_0_0_0
-	// Distribute load across instances using round robin strategy
+
+	// Distribute load across partitions using round robin strategy
 	c.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 
-	// Felice consumer configuration
-	c.KafkaAddrs = addrs
-	if len(c.KafkaAddrs) == 0 {
-		c.KafkaAddrs = []string{"localhost:9092"}
+	// Note: we could set c.Consumer.Return.Errors to  true
+	// and then read on the errors channel to log consumer errors.
+
+	if len(addrs) == 0 {
+		addrs = []string{"localhost:9092"}
 	}
-
-	c.MaxRetryInterval = 5 * time.Second
-	c.KeyCodec = codec.String() // defaults to String
-
-	// Note: the logic in handleMsg assumes that
-	// this does not terminate; be aware of that when changing
-	// this strategy.
-	c.retryStrategy = retry.Exponential{
-		Initial:  time.Millisecond,
-		Factor:   2,
-		MaxDelay: c.MaxRetryInterval,
-		Jitter:   true,
+	return Config{
+		Config:     c,
+		KafkaAddrs: addrs,
 	}
-
-	return c
 }
 
 // Validate validates the configuration.
