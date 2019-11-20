@@ -2,7 +2,7 @@
 
 # Felice
 [![Build Status](https://travis-ci.org/heetch/felice.svg?branch=master)](https://travis-ci.org/heetch/felice)
-[![Documentation](https://godoc.org/github.com/heetch/felice?status.svg)](http://godoc.org/github.com/heetch/felice) 
+[![Documentation](https://godoc.org/github.com/heetch/felice?status.svg)](http://godoc.org/github.com/heetch/felice)
 ## What is Felice?
 Felice is a nascent, opinionated Kafka library for Go, in Go.
 
@@ -20,4 +20,5 @@ the documentation for the `producer` package.  If you wish to consume
 messages from Kafka, you should start by reading the documentation for
 the `consumer` package.  The `message` package contains the `Message` type that is
 shared by both `consumer` and `producer` code.
+
 
