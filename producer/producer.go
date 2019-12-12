@@ -2,6 +2,7 @@ package producer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Shopify/sarama"
 	"github.com/heetch/felice/codec"
@@ -65,6 +66,63 @@ func (p *Producer) Send(ctx context.Context, topic string, body interface{}, opt
 	return msg, err
 }
 
+// SendMessagesErrors is the error type returned if SendMessages
+// fails to send to Kafka.
+type SendMessagesErrors []*SendMessagesError
+
+func (e SendMessagesErrors) Error() string {
+	return fmt.Sprintf("kafka: failed to deliver %d messages", len(e))
+}
+
+// SendMessagesError describes why one message
+// failed to be sent.
+type SendMessagesError struct {
+	Msg *Message
+	Err error
+}
+
+// SendMessages sends all the given messages in order.
+// If it fails to send the messages to Kafka, it will return a
+// SendMessagesErrors error describing which messages failed.
+func (p *Producer) SendMessages(ctx context.Context, msgs []*Message) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	if p.config.Converter == nil {
+		return errors.New("producer: missing Converter in config")
+	}
+	pmsgs := make([]*sarama.ProducerMessage, len(msgs))
+	for i, m := range msgs {
+		m.prepare()
+		pmsg, err := p.config.Converter.ToKafka(ctx, m)
+		if err != nil {
+			return err
+		}
+		pmsg.Metadata = m
+		pmsgs[i] = pmsg
+	}
+	err := p.SyncProducer.SendMessages(pmsgs)
+	// Some messages may still have been sent, so copy all the
+	// send information across even when there are errors.
+	for i, m := range msgs {
+		p := pmsgs[i]
+		m.Partition, m.Offset, m.ProducedAt = p.Partition, p.Offset, p.Timestamp
+	}
+	if producerErrs, ok := err.(sarama.ProducerErrors); ok {
+		sendErrs := make(SendMessagesErrors, len(producerErrs))
+		for i, e := range producerErrs {
+			sendErrs[i] = &SendMessagesError{
+				Msg: e.Msg.Metadata.(*Message),
+				Err: e.Err,
+			}
+		}
+		err = sendErrs
+	}
+	return err
+}
+
 // SendMessage sends the given message to Kafka synchronously.
 func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
 	select {
@@ -72,7 +130,6 @@ func (p *Producer) SendMessage(ctx context.Context, msg *Message) error {
 		return ctx.Err()
 	default:
 	}
-
 	if p.config.Converter == nil {
 		return errors.New("producer: missing Converter in config")
 	}
