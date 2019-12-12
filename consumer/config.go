@@ -22,6 +22,8 @@ type Config struct {
 	KeyCodec codec.Codec
 }
 
+const defaultRetryInterval = 5 * time.Second
+
 // NewConfig creates a config with sane defaults.
 // The Sarama Cluster group mode will always be overwritten by the consumer
 // and thus cannot be changed, as the consumer is designed to use the ConsumerModePartitions mode.
@@ -40,7 +42,6 @@ func NewConfig(clientID string) Config {
 	c.Group.Mode = cluster.ConsumerModePartitions
 
 	// Felice consumer configuration
-	c.MaxRetryInterval = 5 * time.Second
 	c.KeyCodec = codec.String() // defaults to String
 	return c
 }
