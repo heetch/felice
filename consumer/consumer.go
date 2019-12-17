@@ -85,6 +85,9 @@ func (c *Consumer) setup() {
 		// Note: the logic in handleMsg assumes that
 		// this does not terminate; be aware of that when changing
 		// this strategy.
+		if c.config.MaxRetryInterval <= 0 {
+			c.config.MaxRetryInterval = defaultRetryInterval
+		}
 		c.retryStrategy = retry.Exponential{
 			Initial:  time.Millisecond,
 			Factor:   2,
