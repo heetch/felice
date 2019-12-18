@@ -33,8 +33,7 @@ jobs:
     strategy:
       matrix:
         go-version:
-        - v1.12.x
-        - v1.13.x
+        - v1.13.4
         platform:
         - ubuntu-latest
 name: My CI caboodle
