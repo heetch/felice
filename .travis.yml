@@ -11,7 +11,5 @@ go_import_path: github.com/heetch/felice
 os:
   - linux
 
-env:
-	GO
 script:
   - go test -v -race -coverprofile=fmt -timeout=1m ./...
