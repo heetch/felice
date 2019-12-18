@@ -1,6 +1,8 @@
 jobs:
   test:
     runs-on: ${{ matrix.platform }}
+    env:
+      KAFKA_ADDRS: 'kafka:29092'
     services:
       kafka:
         env:
