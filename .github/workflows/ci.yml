@@ -1,15 +1,11 @@
-"on":
-- push
-- pull_request
-name: My CI caboodle
+"on": [push, pull_request]
+name: Test
 jobs:
   test:
     strategy:
       matrix:
-        go-version:
-        - v1.13.4
-        platform:
-        - ubuntu-latest
+        go-version: [v1.13.4]
+        platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
     - name: Install Go
