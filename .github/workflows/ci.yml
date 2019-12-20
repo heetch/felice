@@ -2,19 +2,19 @@ jobs:
   test:
     runs-on: ${{ matrix.platform }}
     env:
-      KAFKA_ADDRS: 'kafka:29092'
+      KAFKA_ADDRS: 'kafka:9092'
     services:
       kafka:
         image: confluentinc/cp-kafka:latest
         env:
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+          KAFKA_ADVERTISED_LISTENERS: PUBLIC://kafka:9092,INTER_BROKER://kafka:2902
           KAFKA_BROKER_ID: "1"
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: INTER_BROKER
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PUBLIC:PLAINTEXT,INTER_BROKER:PLAINTEXT
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
           KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
         ports:
-        - 29092
+        - 9092
       zookeeper:
         image: confluentinc/cp-zookeeper:latest
         env:
