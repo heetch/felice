@@ -6,7 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	qt "github.com/frankban/quicktest"
-	"github.com/heetch/kafkatest"
+	"github.com/heetch/felice/consumer/kafkatest"
 
 	"github.com/heetch/felice/consumer"
 )
