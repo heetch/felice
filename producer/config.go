@@ -18,7 +18,7 @@ func NewConfig(clientID string, converter MessageConverter) Config {
 
 	// Sarama configuration
 	c.Config = *sarama.NewConfig()
-	c.Config.Version = sarama.V1_0_0_0
+	c.Config.Version = sarama.V2_4_0_0
 	c.Config.ClientID = clientID
 	c.Config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	c.Config.Producer.Retry.Max = 3                    // Retry up to 3 times to produce the message

@@ -33,8 +33,8 @@ func NewConfig(clientID string, addrs ...string) Config {
 	c := sarama.NewConfig()
 	c.ClientID = clientID
 
-	// Specify that we are using at least Kafka v1.0
-	c.Version = sarama.V1_0_0_0
+	// Specify that we are using at least Kafka v2.4
+	c.Version = sarama.V2_4_0_0
 
 	// Distribute load across partitions using round robin strategy
 	c.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
