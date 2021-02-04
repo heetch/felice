@@ -13,6 +13,8 @@ jobs:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
       uses: actions/checkout@v2
+    - name: Install richgo
+      run: go get -u github.com/kyoh86/richgo
     - name: Test
-      run: KAFKA_DISABLE=1 go test -v -race -timeout=1m ./...
+      run: KAFKA_DISABLE=1 richgo test -v -race -timeout=1m ./... && echo 'OK' || (echo 'FAIL' && exit 1)
 
