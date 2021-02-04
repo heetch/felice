@@ -5,9 +5,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/heetch/felice/codec"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
+	"github.com/heetch/felice/v2/codec"
 )
 
 func TestEncoding(t *testing.T) {

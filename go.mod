@@ -1,4 +1,4 @@
-module github.com/heetch/felice
+module github.com/heetch/felice/v2
 
 go 1.15
 

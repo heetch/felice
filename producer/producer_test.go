@@ -7,8 +7,9 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/Shopify/sarama/mocks"
-	"github.com/heetch/felice/producer"
 	"github.com/stretchr/testify/require"
+
+	"github.com/heetch/felice/v2/producer"
 )
 
 func TestSendMessage(t *testing.T) {

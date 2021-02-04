@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/Shopify/sarama"
-	"github.com/heetch/felice/codec"
-	"github.com/heetch/felice/producer"
+
+	"github.com/heetch/felice/v2/codec"
+	"github.com/heetch/felice/v2/producer"
 )
 
 var endpoints []string

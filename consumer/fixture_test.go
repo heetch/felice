@@ -8,7 +8,7 @@ import (
 	"github.com/Shopify/sarama"
 	qt "github.com/frankban/quicktest"
 
-	"github.com/heetch/felice/consumer"
+	"github.com/heetch/felice/v2/consumer"
 )
 
 type testKafka struct {
