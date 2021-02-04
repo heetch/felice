@@ -3,6 +3,7 @@ package consumer_test
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
 
 	"github.com/Shopify/sarama"
 	qt "github.com/frankban/quicktest"
@@ -19,6 +20,10 @@ type testKafka struct {
 }
 
 func newTestKafka(c *qt.C, addr string) *testKafka {
+	if os.Getenv("KAFKA_DISABLE") != "" {
+		c.Skipf("skipping integration tests")
+	}
+
 	cfg := sarama.NewConfig()
 	cfg.Version = sarama.V1_0_0_0
 	cfg.Producer.Return.Successes = true
