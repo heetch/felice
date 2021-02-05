@@ -26,7 +26,7 @@ Felice uses the following default configuration:
 ### Producer
 
 * It uses `murmur2` partitioner to be compatible with JVM ecosystem, specially KStreams
-* A maximum retry of 3 attemps
+* A maximum of 3 attempts are made to produce a message before an error is returned
 * It waits for all in-sync replicas to ack the message
 
 ### Consumer
