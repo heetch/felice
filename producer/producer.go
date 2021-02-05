@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/Shopify/sarama"
-	"github.com/heetch/felice/codec"
 	"github.com/pkg/errors"
+
+	"github.com/heetch/felice/v2/codec"
 )
 
 // Producer sends messages to Kafka.

@@ -6,7 +6,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/require"
 
-	"github.com/heetch/felice/consumer"
+	"github.com/heetch/felice/v2/consumer"
 )
 
 func TestConfig(t *testing.T) {

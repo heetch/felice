@@ -4,8 +4,9 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/heetch/felice/codec"
 	"github.com/rogpeppe/fastuuid"
+
+	"github.com/heetch/felice/v2/codec"
 )
 
 var uuids = fastuuid.MustNewGenerator()

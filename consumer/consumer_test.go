@@ -12,9 +12,9 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/heetch/felice/codec"
 
-	"github.com/heetch/felice/consumer"
+	"github.com/heetch/felice/v2/codec"
+	"github.com/heetch/felice/v2/consumer"
 )
 
 func TestSimpleHandler(t *testing.T) {
