@@ -1,7 +1,7 @@
 ![](https://raw.githubusercontent.com/heetch/felice/master/felice.png)
 
 # Felice
-[![Test](https://github.com/heetch/felice/workflows/Test/badge.svg)(https://github.com/heetch/felice/actions)
+[![Test](https://github.com/heetch/felice/workflows/Test/badge.svg)](https://github.com/heetch/felice/actions)
 [![Documentation](https://godoc.org/github.com/heetch/felice?status.svg)](http://godoc.org/github.com/heetch/felice) 
 
 ## What is Felice?
