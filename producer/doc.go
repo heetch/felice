@@ -13,4 +13,9 @@
 // Producers require a valid configuration to be able to run properly.
 // The Config type allows to define the client id and converter by also to customize
 // Sarama's behaviour.
+//
+// Default configuration:
+// * Uses murmur2 partitioner to be compatible with JVM ecosystem, specially KStreams
+// * Max retry 3 attemps
+// * Wait for all in-sync replicas to ack the message
 package producer
