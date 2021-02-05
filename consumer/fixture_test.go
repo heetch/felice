@@ -2,46 +2,48 @@ package consumer_test
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
-	"os"
 
 	"github.com/Shopify/sarama"
 	qt "github.com/frankban/quicktest"
+	"github.com/heetch/kafkatest"
 
 	"github.com/heetch/felice/v2/consumer"
 )
 
 type testKafka struct {
-	addr       string
-	client     sarama.Client
-	controller *sarama.Broker
-	producer   sarama.SyncProducer
-	topics     []string
+	client   sarama.Client
+	producer sarama.SyncProducer
+	kt       *kafkatest.Kafka
 }
 
-func newTestKafka(c *qt.C, addr string) *testKafka {
-	if os.Getenv("KAFKA_DISABLE") != "" {
+func newTestKafka(c *qt.C) *testKafka {
+	kt, err := kafkatest.New()
+	if errors.Is(err, kafkatest.ErrDisabled) {
 		c.Skipf("skipping integration tests")
 	}
+	c.Assert(err, qt.IsNil)
+	c.Cleanup(func() {
+		c.Check(kt.Close(), qt.IsNil)
+	})
 
-	cfg := sarama.NewConfig()
-	cfg.Version = sarama.V1_0_0_0
+	cfg := kt.Config()
 	cfg.Producer.Return.Successes = true
 	cfg.Producer.Return.Errors = true
 	cfg.ClientID = randomName("clientid-")
-	client, err := sarama.NewClient([]string{addr}, cfg)
-	c.Assert(err, qt.Equals, nil)
-	controller, err := client.Controller()
-	c.Assert(err, qt.Equals, nil)
+	client, err := sarama.NewClient(kt.Addrs(), cfg)
+	c.Assert(err, qt.IsNil)
+	c.Cleanup(func() { c.Check(client.Close(), qt.IsNil) })
+
 	producer, err := sarama.NewSyncProducerFromClient(client)
-	c.Assert(err, qt.Equals, nil)
+	c.Assert(err, qt.IsNil)
+	c.Cleanup(func() { c.Check(producer.Close(), qt.IsNil) })
 	k := &testKafka{
-		addr:       addr,
-		client:     client,
-		controller: controller,
-		producer:   producer,
+		kt:       kt,
+		client:   client,
+		producer: producer,
 	}
-	c.Defer(k.Close)
 	return k
 }
 
@@ -53,40 +55,13 @@ func (k *testKafka) NewConsumer() (*consumer.Consumer, error) {
 	// even though that technically shouldn't happen
 	// with unrelated topics. *sigh*
 	// cfg := consumer.NewConfig("testclient", k.addr)
-	cfg := consumer.NewConfig(randomName("testclient"), k.addr)
+	cfg := consumer.NewConfig(randomName("testclient"), k.kt.Addrs()...)
 	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 	return consumer.New(cfg)
 }
 
-func (k *testKafka) NewTopic(prefix string) (string, error) {
-	topic := randomName(prefix)
-	if _, err := k.controller.CreateTopics(&sarama.CreateTopicsRequest{
-		Version: 0,
-		TopicDetails: map[string]*sarama.TopicDetail{
-			topic: {
-				NumPartitions:     1,
-				ReplicationFactor: 0,
-				ReplicaAssignment: map[int32][]int32{},
-			},
-		},
-	}); err != nil {
-		return "", fmt.Errorf("cannot create topic %q: %v", topic, err)
-	}
-	k.topics = append(k.topics, topic)
-	return topic, nil
-}
-
-func (k *testKafka) Close() {
-	_, err := k.controller.DeleteTopics(&sarama.DeleteTopicsRequest{
-		Version: 0,
-		Topics:  k.topics,
-	})
-	if err != nil {
-		panic(fmt.Errorf("cannot delete topic: %v", err))
-	}
-	k.controller.Close()
-	k.producer.Close()
-	k.client.Close()
+func (k *testKafka) NewTopic(prefix string) string {
+	return k.kt.NewTopic()
 }
 
 func (k *testKafka) Produce(m *sarama.ProducerMessage) error {

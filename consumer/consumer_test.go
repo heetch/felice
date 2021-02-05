@@ -21,9 +21,9 @@ func TestSimpleHandler(t *testing.T) {
 	c := qt.New(t)
 	defer c.Done()
 	c.Parallel()
-	k := newTestKafka(c, "localhost:9092")
-	topic, err := k.NewTopic("testtopic")
-	c.Assert(err, qt.Equals, nil)
+
+	k := newTestKafka(c)
+	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
 	k.Produce(&sarama.ProducerMessage{
@@ -108,9 +108,9 @@ func TestDiscardedCalledOnHandlerError(t *testing.T) {
 	c := qt.New(t)
 	defer c.Done()
 	c.Parallel()
-	k := newTestKafka(c, "localhost:9092")
-	topic, err := k.NewTopic("testtopic")
-	c.Assert(err, qt.Equals, nil)
+
+	k := newTestKafka(c)
+	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
 	k.Produce(&sarama.ProducerMessage{
@@ -130,7 +130,7 @@ func TestDiscardedCalledOnHandlerError(t *testing.T) {
 		err error
 	}
 	discarded := make(chan discardedCall)
-	cfg := consumer.NewConfig("testclient", k.addr)
+	cfg := consumer.NewConfig("testclient", k.kt.Addrs()...)
 	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 	cfg.Discarded = func(m *sarama.ConsumerMessage, err error) {
 		discarded <- discardedCall{m, err}
@@ -187,9 +187,9 @@ func TestServeReturnsOnClose(t *testing.T) {
 	c := qt.New(t)
 	defer c.Done()
 	c.Parallel()
-	k := newTestKafka(c, "localhost:9092")
-	topic, err := k.NewTopic("testtopic")
-	c.Assert(err, qt.Equals, nil)
+
+	k := newTestKafka(c)
+	topic := k.NewTopic("testtopic")
 
 	cs, err := k.NewConsumer()
 	c.Assert(err, qt.Equals, nil)
@@ -220,9 +220,9 @@ func TestHandlerCanceledOnClose(t *testing.T) {
 	c := qt.New(t)
 	defer c.Done()
 	c.Parallel()
-	k := newTestKafka(c, "localhost:9092")
-	topic, err := k.NewTopic("testtopic")
-	c.Assert(err, qt.Equals, nil)
+
+	k := newTestKafka(c)
+	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
 	k.Produce(&sarama.ProducerMessage{

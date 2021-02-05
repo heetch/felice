@@ -8,6 +8,7 @@ require (
 	github.com/burdiyan/kafkautil v0.0.0-20190131162249-eaf83ed22d5b
 	github.com/frankban/quicktest v1.11.3
 	github.com/google/go-cmp v0.5.4
+	github.com/heetch/kafkatest v1.1.0
 	github.com/lovoo/goka v1.0.5 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rogpeppe/fastuuid v1.2.0

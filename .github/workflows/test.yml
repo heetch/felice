@@ -6,6 +6,34 @@ jobs:
     strategy:
       matrix:
         go-version: [1.14.x, 1.15.x]
+
+    services:
+      zookeeper:
+        image: confluentinc/cp-zookeeper:5.4.0
+        ports:
+          - 22181:22181
+        env:
+          ZOOKEEPER_SERVER_ID: 1
+          ZOOKEEPER_CLIENT_PORT: 22181
+          ZOOKEEPER_TICK_TIME: 2000
+          ZOOKEEPER_INIT_LIMIT: 5
+          ZOOKEEPER_SYNC_LIMIT: 2
+      kafka:
+        image: confluentinc/cp-kafka:5.4.0
+        ports:
+          - 9092:9092
+          - 29092:29092
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:22181
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
     steps:
     - name: Install Go
       uses: actions/setup-go@v2
@@ -15,6 +43,14 @@ jobs:
       uses: actions/checkout@v2
     - name: Install richgo
       run: go get -u github.com/kyoh86/richgo
+    - name: Wait for kafka
+      #run: docker exec $(docker ps | grep kafka | cut -f1 -d' ') "/usr/local/bin/cub" "kafka-ready" -b "localhost:9092" 1 10
+      run: sleep 20
+    - name: Check logs ZK
+      run: docker logs $(docker ps | grep zookeeper | cut -f1 -d' ')
+    - name: Check logs Kafka
+      run: docker logs $(docker ps | grep kafka | cut -f1 -d' ')
     - name: Test
-      run: KAFKA_DISABLE=1 richgo test -v -race -timeout=1m ./... && echo 'OK' || (echo 'FAIL' && exit 1)
-
+      run: richgo test -v -race -timeout=1m ./... && echo 'OK' || (echo 'FAIL' && exit 1)
+      env:
+        KAFKA_ADDRS: 'localhost:9092'
