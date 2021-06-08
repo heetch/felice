@@ -20,14 +20,14 @@ import (
 
 func TestSimpleHandler(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
 	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
-	k.Produce(&sarama.ProducerMessage{
+	err := k.Produce(&sarama.ProducerMessage{
 		Topic:     topic,
 		Key:       sarama.StringEncoder("a"),
 		Value:     sarama.StringEncoder(`{"x":1}`),
@@ -40,10 +40,8 @@ func TestSimpleHandler(t *testing.T) {
 			Value: []byte("value2"),
 		}},
 	})
-	type handleReq struct {
-		m     *consumer.Message
-		reply chan error
-	}
+	c.Assert(err, qt.IsNil)
+
 	cs, err := k.NewConsumer()
 	c.Assert(err, qt.Equals, nil)
 	defer func() {
@@ -96,7 +94,7 @@ func TestSimpleHandler(t *testing.T) {
 
 func TestCloseBeforeServe(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 	cfg := consumer.NewConfig("clientid", "0.1.2.3:1234")
 	cs, err := consumer.New(cfg)
@@ -107,7 +105,7 @@ func TestCloseBeforeServe(t *testing.T) {
 
 func TestDiscardedCalledOnHandlerError(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
@@ -115,18 +113,22 @@ func TestDiscardedCalledOnHandlerError(t *testing.T) {
 		topic := k.NewTopic("testtopic")
 
 		t0 := time.Now()
-		k.Produce(&sarama.ProducerMessage{
+		err := k.Produce(&sarama.ProducerMessage{
 			Topic:     topic,
 			Key:       sarama.StringEncoder("a"),
 			Value:     sarama.StringEncoder(`1`),
 			Timestamp: t0,
 		})
-		k.Produce(&sarama.ProducerMessage{
+		c.Assert(err, qt.IsNil)
+
+		err = k.Produce(&sarama.ProducerMessage{
 			Topic:     topic,
 			Key:       sarama.StringEncoder("a"),
 			Value:     sarama.StringEncoder(`2`),
 			Timestamp: t0,
 		})
+		c.Assert(err, qt.IsNil)
+
 		discarded := make(chan discardedCall)
 		cfg := consumer.NewConfig("testclient", k.kt.Addrs()...)
 		cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
@@ -185,12 +187,13 @@ func TestDiscardedCalledOnHandlerError(t *testing.T) {
 
 	c.Run("Mark as not committed", func(c *qt.C) {
 		topic := k.NewTopic("testtopic1")
-		k.Produce(&sarama.ProducerMessage{
+		err := k.Produce(&sarama.ProducerMessage{
 			Topic:     topic,
 			Key:       sarama.StringEncoder("msgkey"),
 			Value:     sarama.StringEncoder("value"),
 			Timestamp: time.Now(),
 		})
+		c.Assert(err, qt.IsNil)
 
 		discarded := make(chan discardedCall)
 
@@ -245,7 +248,7 @@ func TestDiscardedCalledOnHandlerError(t *testing.T) {
 
 func TestServeReturnsOnClose(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
@@ -278,23 +281,21 @@ func TestServeReturnsOnClose(t *testing.T) {
 
 func TestHandlerCanceledOnClose(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
 	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
-	k.Produce(&sarama.ProducerMessage{
+	err := k.Produce(&sarama.ProducerMessage{
 		Topic:     topic,
 		Key:       sarama.StringEncoder("a"),
 		Value:     sarama.StringEncoder(`{"x":1}`),
 		Timestamp: t0,
 	})
-	type handleReq struct {
-		m     *consumer.Message
-		reply chan error
-	}
+	c.Assert(err, qt.IsNil)
+
 	cs, err := k.NewConsumer()
 	c.Assert(err, qt.Equals, nil)
 	defer func() {
@@ -336,6 +337,11 @@ func TestHandlerCanceledOnClose(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		c.Errorf("timed out waiting for handler to complete call")
 	}
+}
+
+type handleReq struct {
+	m     *consumer.Message
+	reply chan error
 }
 
 type discardedCall struct {
