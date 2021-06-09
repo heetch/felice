@@ -158,7 +158,7 @@ func (c consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cla
 	for msg := range claim.Messages() {
 		mark := true
 		if err := h.handleMessage(ctx, msg, claim); err != nil {
-			if c.consumer.config.Discarded != nil {
+			if c.consumer.config.Discarded != nil && ctx.Err() == nil {
 				mark = c.consumer.config.Discarded(ctx, msg, err)
 			}
 		}
