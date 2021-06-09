@@ -44,7 +44,7 @@ func (e *encoder) Length() int {
 		return len(e.cache)
 	}
 
-	e.Encode()
+	_, _ = e.Encode()
 	return len(e.cache)
 }
 

@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"context"
 	"errors"
 
 	"github.com/Shopify/sarama"
@@ -19,8 +20,10 @@ type Config struct {
 	KafkaAddrs []string
 
 	// If non-nil, Discarded is called when a message handler
-	// returns an error.
-	Discarded func(m *sarama.ConsumerMessage, err error)
+	// returns an error. It receives the ConsumerGroupSession context as first parameter.
+	// It returns if the message should be marked as committed.
+	// If Discarded is not set, then the message will be marked as committed.
+	Discarded func(ctx context.Context, m *sarama.ConsumerMessage, err error) (mark bool)
 }
 
 // NewConfig returns a configuration filled in with default values.

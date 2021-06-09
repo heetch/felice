@@ -156,9 +156,10 @@ func (c consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cla
 	// and it's not possible to remove a topic from the handler list.
 	h := c.consumer.handlers.get(claim.Topic())
 	for msg := range claim.Messages() {
+		mark := true
 		if err := h.handleMessage(ctx, msg, claim); err != nil {
-			if c.consumer.config.Discarded != nil {
-				c.consumer.config.Discarded(msg, err)
+			if c.consumer.config.Discarded != nil && ctx.Err() == nil {
+				mark = c.consumer.config.Discarded(ctx, msg, err)
 			}
 		}
 		if ctx.Err() != nil {
@@ -169,7 +170,9 @@ func (c consumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, cla
 			}
 			break
 		}
-		sess.MarkMessage(msg, "")
+		if mark {
+			sess.MarkMessage(msg, "")
+		}
 	}
 	return nil
 }

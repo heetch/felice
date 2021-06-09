@@ -3,6 +3,7 @@ package consumer_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -19,14 +20,14 @@ import (
 
 func TestSimpleHandler(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
 	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
-	k.Produce(&sarama.ProducerMessage{
+	err := k.Produce(&sarama.ProducerMessage{
 		Topic:     topic,
 		Key:       sarama.StringEncoder("a"),
 		Value:     sarama.StringEncoder(`{"x":1}`),
@@ -39,10 +40,8 @@ func TestSimpleHandler(t *testing.T) {
 			Value: []byte("value2"),
 		}},
 	})
-	type handleReq struct {
-		m     *consumer.Message
-		reply chan error
-	}
+	c.Assert(err, qt.IsNil)
+
 	cs, err := k.NewConsumer()
 	c.Assert(err, qt.Equals, nil)
 	defer func() {
@@ -95,7 +94,7 @@ func TestSimpleHandler(t *testing.T) {
 
 func TestCloseBeforeServe(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 	cfg := consumer.NewConfig("clientid", "0.1.2.3:1234")
 	cs, err := consumer.New(cfg)
@@ -106,86 +105,150 @@ func TestCloseBeforeServe(t *testing.T) {
 
 func TestDiscardedCalledOnHandlerError(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
-	topic := k.NewTopic("testtopic")
+	c.Run("Mark as committed", func(c *qt.C) {
+		topic := k.NewTopic("testtopic")
 
-	t0 := time.Now()
-	k.Produce(&sarama.ProducerMessage{
-		Topic:     topic,
-		Key:       sarama.StringEncoder("a"),
-		Value:     sarama.StringEncoder(`1`),
-		Timestamp: t0,
-	})
-	k.Produce(&sarama.ProducerMessage{
-		Topic:     topic,
-		Key:       sarama.StringEncoder("a"),
-		Value:     sarama.StringEncoder(`2`),
-		Timestamp: t0,
-	})
-	type discardedCall struct {
-		msg *sarama.ConsumerMessage
-		err error
-	}
-	discarded := make(chan discardedCall)
-	cfg := consumer.NewConfig("testclient", k.kt.Addrs()...)
-	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
-	cfg.Discarded = func(m *sarama.ConsumerMessage, err error) {
-		discarded <- discardedCall{m, err}
-	}
-	notDiscarded := make(chan string)
+		t0 := time.Now()
+		err := k.Produce(&sarama.ProducerMessage{
+			Topic:     topic,
+			Key:       sarama.StringEncoder("a"),
+			Value:     sarama.StringEncoder(`1`),
+			Timestamp: t0,
+		})
+		c.Assert(err, qt.IsNil)
 
-	cs, err := consumer.New(cfg)
-	c.Assert(err, qt.Equals, nil)
-	cs.Handle(topic, consumer.MessageConverterV1(nil), handlerFunc(func(ctx context.Context, m *consumer.Message) error {
-		val := string(m.Body.Bytes())
-		if val == "1" {
-			// When we return this error, the Discarded method should be called
-			// and the message should be marked as consumed.
-			return fmt.Errorf("some handler error")
+		err = k.Produce(&sarama.ProducerMessage{
+			Topic:     topic,
+			Key:       sarama.StringEncoder("a"),
+			Value:     sarama.StringEncoder(`2`),
+			Timestamp: t0,
+		})
+		c.Assert(err, qt.IsNil)
+
+		discarded := make(chan discardedCall)
+		cfg := consumer.NewConfig("testclient", k.kt.Addrs()...)
+		cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
+		cfg.Discarded = func(ctx context.Context, m *sarama.ConsumerMessage, err error) bool {
+			discarded <- discardedCall{ctx: ctx, msg: m, err: err}
+			return true
 		}
+		notDiscarded := make(chan string)
+
+		cs, err := consumer.New(cfg)
+		c.Assert(err, qt.Equals, nil)
+		cs.Handle(topic, consumer.MessageConverterV1(nil), handlerFunc(func(ctx context.Context, m *consumer.Message) error {
+			val := string(m.Body.Bytes())
+			if val == "1" {
+				// When we return this error, the Discarded method should be called
+				// and the message should be marked as consumed.
+				return fmt.Errorf("some handler error")
+			}
+			select {
+			case notDiscarded <- val:
+			case <-ctx.Done():
+				c.Errorf("error trying to send on notDiscarded: %v", ctx.Err())
+			}
+			return nil
+		}))
+		serveDone := make(chan error)
+		go func() {
+			serveDone <- cs.Serve(context.Background())
+		}()
+		defer func() {
+			c.Check(cs.Close(), qt.Equals, nil)
+			c.Check(<-serveDone, qt.Equals, nil)
+		}()
+		// The first message should be sent by the Discarded function.
 		select {
-		case notDiscarded <- val:
-		case <-ctx.Done():
-			c.Errorf("error trying to send on notDiscarded: %v", ctx.Err())
+		case call := <-discarded:
+			c.Check(call.ctx, qt.Not(qt.IsNil))
+			c.Check(string(call.msg.Value), qt.Equals, "1")
+			c.Check(call.msg.Offset, qt.Equals, int64(0))
+			c.Check(call.err, qt.ErrorMatches, "some handler error")
+		case v := <-notDiscarded:
+			c.Fatalf("unexpected non-error message %q (expecting call to Discarded)", v)
+		case <-time.After(15 * time.Second):
+			c.Fatalf("timed out waiting for first Discarded call")
 		}
-		return nil
-	}))
-	serveDone := make(chan error)
-	go func() {
-		serveDone <- cs.Serve(context.Background())
-	}()
-	defer func() {
-		c.Check(cs.Close(), qt.Equals, nil)
-		c.Check(<-serveDone, qt.Equals, nil)
-	}()
-	// The first message should be sent by the Discarded function.
-	select {
-	case call := <-discarded:
-		c.Check(string(call.msg.Value), qt.Equals, "1")
-		c.Check(call.msg.Offset, qt.Equals, int64(0))
-		c.Check(call.err, qt.ErrorMatches, "some handler error")
-	case v := <-notDiscarded:
-		c.Fatalf("unexpected non-error message %q (expecting call to Discarded)", v)
-	case <-time.After(15 * time.Second):
-		c.Fatalf("timed out waiting for first Discarded call")
-	}
-	// The second message should be handled normally.
-	select {
-	case call := <-discarded:
-		c.Errorf("unexpected call to discarded %q (message received twice?)", call.msg.Value)
-	case v := <-notDiscarded:
-		c.Check(v, qt.Equals, "2")
-	case <-time.After(15 * time.Second):
-		c.Fatalf("timed out waiting for second HandleMessage call")
-	}
+		// The second message should be handled normally.
+		select {
+		case call := <-discarded:
+			c.Errorf("unexpected call to discarded %q (message received twice?)", call.msg.Value)
+		case v := <-notDiscarded:
+			c.Check(v, qt.Equals, "2")
+		case <-time.After(15 * time.Second):
+			c.Fatalf("timed out waiting for second HandleMessage call")
+		}
+	})
+
+	c.Run("Mark as not committed", func(c *qt.C) {
+		topic := k.NewTopic("testtopic1")
+		err := k.Produce(&sarama.ProducerMessage{
+			Topic:     topic,
+			Key:       sarama.StringEncoder("msgkey"),
+			Value:     sarama.StringEncoder("value"),
+			Timestamp: time.Now(),
+		})
+		c.Assert(err, qt.IsNil)
+
+		discarded := make(chan discardedCall)
+
+		cfg := consumer.NewConfig("testclient1", k.kt.Addrs()...)
+		cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
+		cfg.Discarded = func(ctx context.Context, m *sarama.ConsumerMessage, err error) bool {
+			discarded <- discardedCall{ctx: ctx, msg: m, err: err}
+			// Don't mark as committed
+			return false
+		}
+
+		cs, err := consumer.New(cfg)
+		c.Assert(err, qt.IsNil)
+		cs.Handle(topic, consumer.MessageConverterV1(nil), handlerFunc(func(ctx context.Context, m *consumer.Message) error {
+			c.Check(string(m.Body.Bytes()), qt.Equals, "value")
+			c.Check(string(m.Key.Bytes()), qt.Equals, "msgkey")
+			return errors.New("here I am")
+		}))
+
+		serveDone := make(chan error)
+		go func() {
+			serveDone <- cs.Serve(context.Background())
+		}()
+
+		select {
+		case call := <-discarded:
+			c.Check(call.ctx, qt.Not(qt.IsNil))
+			c.Check(string(call.msg.Value), qt.Equals, "value")
+			c.Check(call.msg.Offset, qt.Equals, int64(0))
+			c.Check(call.err, qt.ErrorMatches, "here I am")
+		case <-time.After(15 * time.Second):
+			c.Fatalf("timed out waiting for first Discarded call")
+		}
+
+		c.Assert(cs.Close(), qt.IsNil)
+		c.Assert(<-serveDone, qt.IsNil)
+
+		// Check no offset were marked
+		adminClient, err := sarama.NewClusterAdmin(k.kt.Addrs(), cfg.Config)
+		c.Assert(err, qt.IsNil)
+
+		resp, err := adminClient.ListConsumerGroupOffsets("testclient1", map[string][]int32{
+			topic: []int32{0},
+		})
+		c.Assert(err, qt.IsNil)
+
+		c.Assert(resp.GetBlock(topic, 0).Offset, qt.Equals, sarama.OffsetNewest,
+			qt.Commentf("message should not be marked"))
+
+	})
 }
 
 func TestServeReturnsOnClose(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
@@ -218,23 +281,21 @@ func TestServeReturnsOnClose(t *testing.T) {
 
 func TestHandlerCanceledOnClose(t *testing.T) {
 	c := qt.New(t)
-	defer c.Done()
+
 	c.Parallel()
 
 	k := newTestKafka(c)
 	topic := k.NewTopic("testtopic")
 
 	t0 := time.Now()
-	k.Produce(&sarama.ProducerMessage{
+	err := k.Produce(&sarama.ProducerMessage{
 		Topic:     topic,
 		Key:       sarama.StringEncoder("a"),
 		Value:     sarama.StringEncoder(`{"x":1}`),
 		Timestamp: t0,
 	})
-	type handleReq struct {
-		m     *consumer.Message
-		reply chan error
-	}
+	c.Assert(err, qt.IsNil)
+
 	cs, err := k.NewConsumer()
 	c.Assert(err, qt.Equals, nil)
 	defer func() {
@@ -276,6 +337,17 @@ func TestHandlerCanceledOnClose(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		c.Errorf("timed out waiting for handler to complete call")
 	}
+}
+
+type handleReq struct {
+	m     *consumer.Message
+	reply chan error
+}
+
+type discardedCall struct {
+	ctx context.Context
+	msg *sarama.ConsumerMessage
+	err error
 }
 
 // handlerFunc implements Handle by calling the underlying function.
