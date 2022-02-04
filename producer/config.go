@@ -2,7 +2,6 @@ package producer
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/burdiyan/kafkautil"
 )
 
 // Config is used to configure the Producer.
@@ -23,7 +22,7 @@ func NewConfig(clientID string, converter MessageConverter) Config {
 	c.Config.ClientID = clientID
 	c.Config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	c.Config.Producer.Retry.Max = 3                    // Retry up to 3 times to produce the message
-	c.Config.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
+	c.Config.Producer.Partitioner = NewJVMCompatiblePartitioner
 	// required for the SyncProducer, see https://godoc.org/github.com/Shopify/sarama#SyncProducer
 	c.Config.Producer.Return.Successes = true
 	c.Config.Producer.Return.Errors = true
