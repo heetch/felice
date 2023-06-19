@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.14.x, 1.15.x]
+        go-version: [1.20.x]
 
     services:
       zookeeper:
@@ -45,7 +45,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Install richgo
-      run: go get -u github.com/kyoh86/richgo
+      run: go get -d github.com/kyoh86/richgo && go install github.com/kyoh86/richgo
     - name: Test
       run: richgo test -v -race -timeout=1m ./... && echo 'OK' || (echo 'FAIL' && exit 1)
       env:
