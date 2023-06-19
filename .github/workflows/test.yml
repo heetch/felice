@@ -45,7 +45,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Install richgo
-      run: go install github.com/kyoh86/richgo
+      run: go get -d github.com/kyoh86/richgo && go install github.com/kyoh86/richgo
     - name: Test
       run: richgo test -v -race -timeout=1m ./... && echo 'OK' || (echo 'FAIL' && exit 1)
       env:
