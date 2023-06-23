@@ -1,3 +1,10 @@
+---
+
+
+**The Felice library has been archived, and is no longer under active maintainenance.**
+
+---
+
 ![](https://raw.githubusercontent.com/heetch/felice/master/felice.png)
 
 # Felice
